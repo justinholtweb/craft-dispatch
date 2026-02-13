@@ -1,0 +1,128 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Dispatch Settings'|t('dispatch') %}
+{% set selectedSubnavItem = 'settings' %}
+{% set fullPageForm = true %}
+
+{% block pluginContent %}
+    <input type="hidden" name="action" value="dispatch/campaigns/save-settings">
+    {{ redirectInput('dispatch/settings') }}
+
+    <div id="fields">
+        <h2>{{ 'Default Sender'|t('dispatch') }}</h2>
+
+        <div class="flex">
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'Default From Name'|t('dispatch'),
+                    instructions: 'Leave blank to use the Craft system email name.'|t('dispatch'),
+                    id: 'defaultFromName',
+                    name: 'settings[defaultFromName]',
+                    value: settings.defaultFromName,
+                }) }}
+            </div>
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'Default From Email'|t('dispatch'),
+                    instructions: 'Leave blank to use the Craft system email.'|t('dispatch'),
+                    id: 'defaultFromEmail',
+                    name: 'settings[defaultFromEmail]',
+                    value: settings.defaultFromEmail,
+                    type: 'email',
+                }) }}
+            </div>
+        </div>
+
+        {{ forms.textField({
+            label: 'Default Reply-To Email'|t('dispatch'),
+            id: 'defaultReplyToEmail',
+            name: 'settings[defaultReplyToEmail]',
+            value: settings.defaultReplyToEmail,
+            type: 'email',
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'Sending'|t('dispatch') }}</h2>
+
+        {{ forms.textField({
+            label: 'Batch Size'|t('dispatch'),
+            instructions: 'Number of emails to send per queue batch.'|t('dispatch'),
+            id: 'sendBatchSize',
+            name: 'settings[sendBatchSize]',
+            value: settings.sendBatchSize,
+            type: 'number',
+            min: 1,
+            max: 500,
+        }) }}
+
+        {{ forms.textField({
+            label: 'Rate Limit'|t('dispatch'),
+            instructions: 'Maximum emails per second. 0 = unlimited.'|t('dispatch'),
+            id: 'sendRateLimit',
+            name: 'settings[sendRateLimit]',
+            value: settings.sendRateLimit,
+            type: 'number',
+            min: 0,
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'Templates'|t('dispatch') }}</h2>
+
+        {{ forms.textField({
+            label: 'Default Template Layout'|t('dispatch'),
+            instructions: 'Path to the default email layout template.'|t('dispatch'),
+            id: 'defaultTemplateLayout',
+            name: 'settings[defaultTemplateLayout]',
+            value: settings.defaultTemplateLayout,
+        }) }}
+
+        {{ forms.textField({
+            label: 'Custom Unsubscribe URL'|t('dispatch'),
+            instructions: 'Leave blank to use the built-in unsubscribe page.'|t('dispatch'),
+            id: 'unsubscribeUrl',
+            name: 'settings[unsubscribeUrl]',
+            value: settings.unsubscribeUrl,
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'Tracking'|t('dispatch') }}</h2>
+
+        {{ forms.lightswitchField({
+            label: 'Enable Tracking'|t('dispatch'),
+            instructions: 'Enable open and click tracking for campaigns. Requires Lite edition.'|t('dispatch'),
+            id: 'enableTracking',
+            name: 'settings[enableTracking]',
+            on: settings.enableTracking,
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Track Opens'|t('dispatch'),
+            id: 'trackOpens',
+            name: 'settings[trackOpens]',
+            on: settings.trackOpens,
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Track Clicks'|t('dispatch'),
+            id: 'trackClicks',
+            name: 'settings[trackClicks]',
+            on: settings.trackClicks,
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'User Sync'|t('dispatch') }}</h2>
+
+        {{ forms.checkboxSelectField({
+            label: 'Sync User Groups'|t('dispatch'),
+            instructions: 'Select Craft user groups to sync as subscribers. Requires Lite edition.'|t('dispatch'),
+            id: 'userGroupSync',
+            name: 'settings[userGroupSync]',
+            values: settings.userGroupSync,
+            options: craft.app.userGroups.getAllGroups()|map(g => { label: g.name, value: g.id }),
+        }) }}
+    </div>
+{% endblock %}

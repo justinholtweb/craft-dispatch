@@ -1,0 +1,68 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Dashboard'|t('dispatch') %}
+{% set selectedSubnavItem = 'dashboard' %}
+
+{% block pluginContent %}
+    <div class="pane">
+        <h2>{{ 'Recent Campaigns'|t('dispatch') }}</h2>
+
+        {% if recentCampaigns|length %}
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th>{{ 'Campaign'|t('dispatch') }}</th>
+                        <th>{{ 'Sent'|t('dispatch') }}</th>
+                        <th>{{ 'Opens'|t('dispatch') }}</th>
+                        <th>{{ 'Open Rate'|t('dispatch') }}</th>
+                        <th>{{ 'Clicks'|t('dispatch') }}</th>
+                        <th>{{ 'Click Rate'|t('dispatch') }}</th>
+                        <th>{{ 'Bounces'|t('dispatch') }}</th>
+                        <th>{{ 'Date Sent'|t('dispatch') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for campaign in recentCampaigns %}
+                        {% set report = reports[campaign.id] %}
+                        <tr>
+                            <td><a href="{{ campaign.cpEditUrl }}">{{ campaign.title }}</a></td>
+                            <td>{{ report.totalSent }}</td>
+                            <td>{{ report.uniqueOpens }}</td>
+                            <td>{{ report.openRate|number_format(1) }}%</td>
+                            <td>{{ report.uniqueClicks }}</td>
+                            <td>{{ report.clickRate|number_format(1) }}%</td>
+                            <td>{{ report.totalBounces }}</td>
+                            <td>{{ campaign.sentAt ? campaign.sentAt|date('M j, Y g:ia') : '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="zilch">{{ 'No campaigns sent yet.'|t('dispatch') }}</p>
+        {% endif %}
+    </div>
+
+    <div class="pane" style="margin-top: 24px;">
+        <h2>{{ 'Delivery Health'|t('dispatch') }}</h2>
+        <div class="flex">
+            <div class="flex-grow">
+                <div class="pane">
+                    <h3>{{ 'Total Subscribers'|t('dispatch') }}</h3>
+                    <p class="text-lg">{{ craft.dispatch.subscribers.find().subscriberStatus('active').count() }}</p>
+                </div>
+            </div>
+            <div class="flex-grow">
+                <div class="pane">
+                    <h3>{{ 'Total Campaigns Sent'|t('dispatch') }}</h3>
+                    <p class="text-lg">{{ craft.dispatch.campaigns.find().campaignStatus('sent').count() }}</p>
+                </div>
+            </div>
+            <div class="flex-grow">
+                <div class="pane">
+                    <h3>{{ 'Mailing Lists'|t('dispatch') }}</h3>
+                    <p class="text-lg">{{ craft.dispatch.lists.find().count() }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

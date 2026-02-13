@@ -1,0 +1,35 @@
+{
+    "name": "justinholtweb/craft-dispatch",
+    "description": "Lightweight email marketing and newsletter plugin for Craft CMS 5. Manage subscribers, send campaigns, and track delivery natively.",
+    "type": "craft-plugin",
+    "license": "proprietary",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "php": "^8.2",
+        "craftcms/cms": "^5.3.0"
+    },
+    "require-dev": {
+        "codeception/codeception": "^5.0",
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "justinholtweb\\dispatch\\": "src/"
+        }
+    },
+    "support": {
+        "issues": "https://github.com/justinholtweb/craft-dispatch/issues",
+        "source": "https://github.com/justinholtweb/craft-dispatch"
+    },
+    "extra": {
+        "handle": "dispatch",
+        "name": "Dispatch",
+        "developer": "Justin Holt",
+        "developerUrl": "https://github.com/justinholtweb",
+        "documentationUrl": "https://github.com/justinholtweb/craft-dispatch",
+        "description": "Lightweight email marketing and newsletter plugin for Craft CMS.",
+        "class": "justinholtweb\\dispatch\\Plugin"
+    }
+}

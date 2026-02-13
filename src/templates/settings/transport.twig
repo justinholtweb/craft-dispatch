@@ -1,0 +1,103 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Transport Settings'|t('dispatch') %}
+{% set selectedSubnavItem = 'settings' %}
+{% set fullPageForm = true %}
+
+{% block pluginContent %}
+    <input type="hidden" name="action" value="dispatch/campaigns/save-settings">
+    {{ redirectInput('dispatch/settings/transport') }}
+
+    <div id="fields">
+        <h2>{{ 'Email Transport'|t('dispatch') }}</h2>
+
+        {{ forms.selectField({
+            label: 'Transport Type'|t('dispatch'),
+            instructions: 'Choose how emails are sent. "Craft Mailer" uses your existing Craft email configuration.'|t('dispatch'),
+            id: 'transportType',
+            name: 'settings[transportType]',
+            value: settings.transportType,
+            options: [
+                { label: 'Craft Mailer (Default)'|t('dispatch'), value: 'craft' },
+                { label: 'Amazon SES', value: 'ses' },
+                { label: 'Mailgun', value: 'mailgun' },
+                { label: 'Postmark', value: 'postmark' },
+                { label: 'SendGrid', value: 'sendgrid' },
+            ],
+        }) }}
+
+        <div id="transport-settings">
+            <div class="transport-config" data-transport="ses" {% if settings.transportType != 'ses' %}style="display:none"{% endif %}>
+                <h3>Amazon SES</h3>
+                {{ forms.textField({
+                    label: 'AWS Region',
+                    name: 'settings[transportSettings][ses][region]',
+                    value: settings.transportSettings.ses.region ?? 'us-east-1',
+                }) }}
+                {{ forms.textField({
+                    label: 'AWS Access Key ID',
+                    name: 'settings[transportSettings][ses][accessKeyId]',
+                    value: settings.transportSettings.ses.accessKeyId ?? '',
+                }) }}
+                {{ forms.passwordField({
+                    label: 'AWS Secret Access Key',
+                    name: 'settings[transportSettings][ses][secretAccessKey]',
+                    value: settings.transportSettings.ses.secretAccessKey ?? '',
+                }) }}
+            </div>
+
+            <div class="transport-config" data-transport="mailgun" {% if settings.transportType != 'mailgun' %}style="display:none"{% endif %}>
+                <h3>Mailgun</h3>
+                {{ forms.textField({
+                    label: 'Domain',
+                    name: 'settings[transportSettings][mailgun][domain]',
+                    value: settings.transportSettings.mailgun.domain ?? '',
+                }) }}
+                {{ forms.passwordField({
+                    label: 'API Key',
+                    name: 'settings[transportSettings][mailgun][apiKey]',
+                    value: settings.transportSettings.mailgun.apiKey ?? '',
+                }) }}
+                {{ forms.selectField({
+                    label: 'Region',
+                    name: 'settings[transportSettings][mailgun][region]',
+                    value: settings.transportSettings.mailgun.region ?? 'us',
+                    options: [
+                        { label: 'US', value: 'us' },
+                        { label: 'EU', value: 'eu' },
+                    ],
+                }) }}
+            </div>
+
+            <div class="transport-config" data-transport="postmark" {% if settings.transportType != 'postmark' %}style="display:none"{% endif %}>
+                <h3>Postmark</h3>
+                {{ forms.passwordField({
+                    label: 'Server Token',
+                    name: 'settings[transportSettings][postmark][serverToken]',
+                    value: settings.transportSettings.postmark.serverToken ?? '',
+                }) }}
+            </div>
+
+            <div class="transport-config" data-transport="sendgrid" {% if settings.transportType != 'sendgrid' %}style="display:none"{% endif %}>
+                <h3>SendGrid</h3>
+                {{ forms.passwordField({
+                    label: 'API Key',
+                    name: 'settings[transportSettings][sendgrid][apiKey]',
+                    value: settings.transportSettings.sendgrid.apiKey ?? '',
+                }) }}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% js %}
+    (function() {
+        var select = document.getElementById('transportType');
+        var configs = document.querySelectorAll('.transport-config');
+        select.addEventListener('change', function() {
+            configs.forEach(function(el) {
+                el.style.display = el.dataset.transport === select.value ? '' : 'none';
+            });
+        });
+    })();
+{% endjs %}

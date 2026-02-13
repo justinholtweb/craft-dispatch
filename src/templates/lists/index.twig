@@ -1,0 +1,20 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Mailing Lists'|t('dispatch') %}
+{% set selectedSubnavItem = 'lists' %}
+{% set elementType = elementType %}
+
+{% block pluginContent %}
+    {{ craft.app.view.renderTemplate('_elements/indexcontainer', {
+        elementType: elementType,
+        sources: null,
+        context: 'index',
+        showStatusMenu: false,
+        showSiteMenu: false,
+        toolbarFlexible: true,
+    }) }}
+{% endblock %}
+
+{% block actionButton %}
+    <a href="{{ url('dispatch/lists/new') }}" class="btn submit">{{ 'New List'|t('dispatch') }}</a>
+{% endblock %}

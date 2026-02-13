@@ -31,7 +31,7 @@ Lightweight email marketing and newsletter plugin for Craft CMS 5. Manage subscr
 ## Installation
 
 ```bash
-composer require jholt/craft-dispatch
+composer require justinholtweb/craft-dispatch
 php craft plugin/install dispatch
 ```
 
@@ -61,8 +61,8 @@ return [
 Subscribers are a custom element type with full field layout support. Create them via the CP or programmatically:
 
 ```php
-use jholt\dispatch\elements\Subscriber;
-use jholt\dispatch\Plugin;
+use justinholtweb\dispatch\elements\Subscriber;
+use justinholtweb\dispatch\Plugin;
 
 $subscriber = new Subscriber();
 $subscriber->email = 'user@example.com';
@@ -77,7 +77,7 @@ Plugin::getInstance()->subscribers->subscribe($subscriber->id, $listId);
 ### Mailing Lists
 
 ```php
-use jholt\dispatch\elements\MailingList;
+use justinholtweb\dispatch\elements\MailingList;
 
 $list = new MailingList();
 $list->name = 'Weekly Newsletter';
@@ -185,11 +185,11 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 Dispatch fires events you can listen to in a custom module or plugin:
 
 ```php
-use jholt\dispatch\elements\Campaign;
-use jholt\dispatch\events\CampaignEvent;
-use jholt\dispatch\events\SubscriberEvent;
-use jholt\dispatch\events\TrackingEvent;
-use jholt\dispatch\services\Tracker;
+use justinholtweb\dispatch\elements\Campaign;
+use justinholtweb\dispatch\events\CampaignEvent;
+use justinholtweb\dispatch\events\SubscriberEvent;
+use justinholtweb\dispatch\events\TrackingEvent;
+use justinholtweb\dispatch\services\Tracker;
 use yii\base\Event;
 
 // Before a campaign sends
@@ -215,4 +215,4 @@ Event::on(Tracker::class, Tracker::EVENT_ON_CLICK, function (TrackingEvent $even
 
 ## License
 
-This plugin is proprietary software. See edition licensing for details.
+This plugin is released under the [Craft License](https://craftcms.github.io/license/).

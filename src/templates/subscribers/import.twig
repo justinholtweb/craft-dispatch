@@ -1,0 +1,34 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Import Subscribers'|t('dispatch') %}
+{% set selectedSubnavItem = 'subscribers' %}
+{% set fullPageForm = true %}
+
+{% block pluginContent %}
+    <input type="hidden" name="action" value="dispatch/subscribers/upload-import">
+    {{ redirectInput('dispatch/subscribers') }}
+
+    <div id="fields">
+        {{ forms.selectField({
+            label: 'Mailing List'|t('dispatch'),
+            instructions: 'Import subscribers into this mailing list.'|t('dispatch'),
+            id: 'mailingListId',
+            name: 'mailingListId',
+            options: listOptions,
+            required: true,
+            first: true,
+        }) }}
+
+        {{ forms.fileField({
+            label: 'CSV File'|t('dispatch'),
+            instructions: 'Upload a CSV file with at least an "email" column. Optional columns: firstName (or first_name), lastName (or last_name).'|t('dispatch'),
+            id: 'csvFile',
+            name: 'csvFile',
+            required: true,
+        }) }}
+    </div>
+
+    <div class="buttons">
+        <button type="submit" class="btn submit">{{ 'Import'|t('dispatch') }}</button>
+    </div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Subscribers'|t('dispatch') %}
+{% set selectedSubnavItem = 'subscribers' %}
+{% set elementType = elementType %}
+
+{% block pluginContent %}
+    {{ craft.app.view.renderTemplate('_elements/indexcontainer', {
+        elementType: elementType,
+        sources: null,
+        context: 'index',
+        showStatusMenu: true,
+        showSiteMenu: false,
+        toolbarFlexible: true,
+    }) }}
+{% endblock %}
+
+{% block actionButton %}
+    <div class="btngroup">
+        <a href="{{ url('dispatch/subscribers/new') }}" class="btn submit">{{ 'New Subscriber'|t('dispatch') }}</a>
+        <button type="button" class="btn menubtn" aria-label="More actions"></button>
+        <div class="menu">
+            <ul>
+                <li><a href="{{ url('dispatch/subscribers/import') }}">{{ 'Import CSV'|t('dispatch') }}</a></li>
+                <li><a href="{{ actionUrl('dispatch/subscribers/export') }}">{{ 'Export CSV'|t('dispatch') }}</a></li>
+            </ul>
+        </div>
+    </div>
+{% endblock %}

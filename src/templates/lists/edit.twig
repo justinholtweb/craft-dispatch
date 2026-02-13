@@ -1,0 +1,56 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set selectedSubnavItem = 'lists' %}
+{% set fullPageForm = true %}
+
+{% block pluginContent %}
+    <input type="hidden" name="action" value="dispatch/lists/save">
+    {{ redirectInput('dispatch/lists') }}
+
+    {% if not isNew %}
+        <input type="hidden" name="listId" value="{{ list.id }}">
+    {% endif %}
+
+    <div id="fields">
+        {{ forms.textField({
+            label: 'Name'|t('dispatch'),
+            id: 'name',
+            name: 'name',
+            value: list.name,
+            errors: list.getErrors('name'),
+            required: true,
+            first: true,
+        }) }}
+
+        {{ forms.textField({
+            label: 'Handle'|t('dispatch'),
+            instructions: 'How you'll refer to this list in templates.'|t('dispatch'),
+            id: 'handle',
+            name: 'handle',
+            value: list.handle,
+            errors: list.getErrors('handle'),
+            class: 'code',
+            required: true,
+        }) }}
+
+        {{ forms.textareaField({
+            label: 'Description'|t('dispatch'),
+            id: 'description',
+            name: 'description',
+            value: list.description,
+            rows: 3,
+        }) }}
+
+        {% if not isNew %}
+            <hr>
+            <div class="field">
+                <div class="heading">
+                    <label>{{ 'Subscriber Count'|t('dispatch') }}</label>
+                </div>
+                <div class="input">
+                    <p>{{ list.subscriberCount }} {{ 'active subscribers'|t('dispatch') }}</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Campaigns'|t('dispatch') %}
+{% set selectedSubnavItem = 'campaigns' %}
+{% set elementType = elementType %}
+
+{% block pluginContent %}
+    {% set newCampaignUrl = url('dispatch/campaigns/new') %}
+
+    {{ craft.app.view.renderTemplate('_elements/indexcontainer', {
+        elementType: elementType,
+        sources: null,
+        context: 'index',
+        showStatusMenu: true,
+        showSiteMenu: false,
+        toolbarFlexible: true,
+    }) }}
+{% endblock %}
+
+{% block actionButton %}
+    <a href="{{ url('dispatch/campaigns/new') }}" class="btn submit">{{ 'New Campaign'|t('dispatch') }}</a>
+{% endblock %}

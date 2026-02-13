@@ -1,0 +1,47 @@
+/* Dispatch CP Styles */
+
+.dispatch-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.dispatch-stat-card {
+    text-align: center;
+    padding: 16px;
+}
+
+.dispatch-stat-card h3 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    color: var(--gray-500);
+    font-weight: normal;
+}
+
+.dispatch-stat-card .text-lg {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.dispatch-send-progress {
+    margin: 16px 0;
+}
+
+.dispatch-send-progress .progress-bar {
+    height: 8px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dispatch-send-progress .progress-bar .progress {
+    height: 100%;
+    background: var(--blue-500);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}

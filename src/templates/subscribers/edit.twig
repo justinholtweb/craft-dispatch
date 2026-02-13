@@ -1,0 +1,71 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set selectedSubnavItem = 'subscribers' %}
+{% set fullPageForm = true %}
+
+{% block pluginContent %}
+    <input type="hidden" name="action" value="dispatch/subscribers/save">
+    {{ redirectInput('dispatch/subscribers') }}
+
+    {% if not isNew %}
+        <input type="hidden" name="subscriberId" value="{{ subscriber.id }}">
+    {% endif %}
+
+    <div id="fields">
+        {{ forms.textField({
+            label: 'Email'|t('dispatch'),
+            id: 'email',
+            name: 'email',
+            value: subscriber.email,
+            errors: subscriber.getErrors('email'),
+            required: true,
+            type: 'email',
+            first: true,
+        }) }}
+
+        <div class="flex">
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'First Name'|t('dispatch'),
+                    id: 'firstName',
+                    name: 'firstName',
+                    value: subscriber.firstName,
+                }) }}
+            </div>
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'Last Name'|t('dispatch'),
+                    id: 'lastName',
+                    name: 'lastName',
+                    value: subscriber.lastName,
+                }) }}
+            </div>
+        </div>
+
+        {{ forms.selectField({
+            label: 'Status'|t('dispatch'),
+            id: 'status',
+            name: 'status',
+            value: subscriber.status,
+            options: [
+                { label: 'Active'|t('dispatch'), value: 'active' },
+                { label: 'Unsubscribed'|t('dispatch'), value: 'unsubscribed' },
+                { label: 'Bounced'|t('dispatch'), value: 'bounced' },
+                { label: 'Complained'|t('dispatch'), value: 'complained' },
+            ],
+        }) }}
+
+        {% if lists|length %}
+            <hr>
+            <h2>{{ 'Mailing Lists'|t('dispatch') }}</h2>
+            {% for list in lists %}
+                {{ forms.checkboxField({
+                    label: list.title,
+                    name: 'listIds[]',
+                    value: list.id,
+                    checked: list.id in subscribedListIds,
+                }) }}
+            {% endfor %}
+        {% endif %}
+    </div>
+{% endblock %}

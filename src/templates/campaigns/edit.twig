@@ -1,0 +1,147 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set selectedSubnavItem = 'campaigns' %}
+{% set fullPageForm = true %}
+
+{% block pluginContent %}
+    <input type="hidden" name="action" value="dispatch/campaigns/save">
+    {{ redirectInput('dispatch/campaigns') }}
+
+    {% if not isNew %}
+        <input type="hidden" name="campaignId" value="{{ campaign.id }}">
+    {% endif %}
+
+    <div id="fields">
+        <div class="field">
+            {{ forms.textField({
+                label: 'Title'|t('dispatch'),
+                instructions: 'Internal campaign name.'|t('dispatch'),
+                id: 'title',
+                name: 'title',
+                value: campaign.title,
+                errors: campaign.getErrors('title'),
+                required: true,
+                first: true,
+            }) }}
+        </div>
+
+        <hr>
+
+        <h2>{{ 'Email Settings'|t('dispatch') }}</h2>
+
+        {{ forms.textField({
+            label: 'Subject Line'|t('dispatch'),
+            instructions: 'The email subject line recipients will see.'|t('dispatch'),
+            id: 'subject',
+            name: 'subject',
+            value: campaign.subject,
+            errors: campaign.getErrors('subject'),
+            required: true,
+        }) }}
+
+        {{ forms.selectField({
+            label: 'Mailing List'|t('dispatch'),
+            instructions: 'The list of subscribers to send to.'|t('dispatch'),
+            id: 'mailingListId',
+            name: 'mailingListId',
+            value: campaign.mailingListId,
+            options: listOptions,
+            errors: campaign.getErrors('mailingListId'),
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'Sender Details'|t('dispatch') }}</h2>
+
+        <div class="flex">
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'From Name'|t('dispatch'),
+                    instructions: 'Leave blank to use default.'|t('dispatch'),
+                    id: 'fromName',
+                    name: 'fromName',
+                    value: campaign.fromName,
+                }) }}
+            </div>
+            <div class="flex-grow">
+                {{ forms.textField({
+                    label: 'From Email'|t('dispatch'),
+                    instructions: 'Leave blank to use default.'|t('dispatch'),
+                    id: 'fromEmail',
+                    name: 'fromEmail',
+                    value: campaign.fromEmail,
+                    type: 'email',
+                }) }}
+            </div>
+        </div>
+
+        {{ forms.textField({
+            label: 'Reply-To Email'|t('dispatch'),
+            id: 'replyToEmail',
+            name: 'replyToEmail',
+            value: campaign.replyToEmail,
+            type: 'email',
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'Email Content'|t('dispatch') }}</h2>
+
+        {{ forms.textField({
+            label: 'Template Path'|t('dispatch'),
+            instructions: 'Path to a Twig template for the email layout. Leave blank to use the default.'|t('dispatch'),
+            id: 'templatePath',
+            name: 'templatePath',
+            value: campaign.templatePath,
+        }) }}
+
+        {{ forms.textareaField({
+            label: 'Email Body'|t('dispatch'),
+            instructions: 'The email content. Supports Twig and HTML.'|t('dispatch'),
+            id: 'body',
+            name: 'body',
+            value: campaign.body,
+            rows: 20,
+            class: 'code',
+        }) }}
+    </div>
+
+    {% if not isNew and campaign.campaignStatus == 'draft' %}
+        <hr>
+        <div class="buttons">
+            <button type="button" class="btn" id="preview-btn">{{ 'Preview'|t('dispatch') }}</button>
+            <form method="post" style="display:inline">
+                {{ csrfInput() }}
+                <input type="hidden" name="action" value="dispatch/campaigns/send">
+                <input type="hidden" name="campaignId" value="{{ campaign.id }}">
+                <button type="submit" class="btn submit">{{ 'Send Campaign'|t('dispatch') }}</button>
+            </form>
+            <form method="post" style="display:inline">
+                {{ csrfInput() }}
+                <input type="hidden" name="action" value="dispatch/campaigns/duplicate">
+                <input type="hidden" name="campaignId" value="{{ campaign.id }}">
+                <button type="submit" class="btn">{{ 'Duplicate'|t('dispatch') }}</button>
+            </form>
+        </div>
+    {% endif %}
+
+    {% if not isNew and campaign.campaignStatus in ['sent', 'sending'] %}
+        <hr>
+        <div class="field">
+            <div class="heading">
+                <label>{{ 'Send Status'|t('dispatch') }}</label>
+            </div>
+            <div class="input">
+                <p>
+                    <strong>{{ 'Status:'|t('dispatch') }}</strong> {{ campaign.campaignStatus }}
+                    &nbsp;|&nbsp;
+                    <strong>{{ 'Sent:'|t('dispatch') }}</strong> {{ campaign.totalSent }}
+                    &nbsp;|&nbsp;
+                    <strong>{{ 'Failed:'|t('dispatch') }}</strong> {{ campaign.totalFailed }}
+                    &nbsp;|&nbsp;
+                    <strong>{{ 'Total Recipients:'|t('dispatch') }}</strong> {{ campaign.totalRecipients }}
+                </p>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

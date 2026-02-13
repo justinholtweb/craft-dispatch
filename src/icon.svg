@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Envelope body -->
+  <rect x="8" y="28" width="84" height="56" rx="4" ry="4" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+  <!-- Envelope flap -->
+  <path d="M8 32 L50 60 L92 32" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Lightning bolt -->
+  <polygon points="56,6 40,42 52,42 44,72 68,32 54,32" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>
