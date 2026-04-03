@@ -86,6 +86,7 @@ class Plugin extends BasePlugin
         $nav = parent::getCpNavItem();
         $nav['label'] = 'Dispatch';
 
+        $nav['url'] = 'dispatch/campaigns';
         $nav['subnav'] = [];
 
         if ($this->is(self::EDITION_LITE) && Craft::$app->getUser()->checkPermission('dispatch:viewDashboard')) {

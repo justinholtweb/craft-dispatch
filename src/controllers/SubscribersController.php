@@ -87,7 +87,7 @@ class SubscribersController extends Controller
         $subscriber->status = $request->getBodyParam('status', 'active');
 
         if (!Craft::$app->getElements()->saveElement($subscriber)) {
-            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn't save subscriber.'));
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t save subscriber.'));
             Craft::$app->getUrlManager()->setRouteParams(['subscriber' => $subscriber]);
             return null;
         }

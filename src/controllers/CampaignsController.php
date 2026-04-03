@@ -87,7 +87,7 @@ class CampaignsController extends Controller
         $campaign->mailingListId = $request->getBodyParam('mailingListId') ?: null;
 
         if (!Craft::$app->getElements()->saveElement($campaign)) {
-            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn't save campaign.'));
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t save campaign.'));
             Craft::$app->getUrlManager()->setRouteParams(['campaign' => $campaign]);
             return null;
         }
@@ -105,7 +105,7 @@ class CampaignsController extends Controller
         $campaignId = Craft::$app->getRequest()->getRequiredBodyParam('campaignId');
 
         if (!Plugin::getInstance()->campaigns->send($campaignId)) {
-            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn't start campaign send.'));
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t start campaign send.'));
             return $this->redirect("dispatch/campaigns/{$campaignId}");
         }
 
@@ -123,7 +123,7 @@ class CampaignsController extends Controller
         $duplicate = Plugin::getInstance()->campaigns->duplicate($campaignId);
 
         if (!$duplicate) {
-            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn't duplicate campaign.'));
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t duplicate campaign.'));
             return $this->redirect("dispatch/campaigns/{$campaignId}");
         }
 
@@ -198,7 +198,7 @@ class CampaignsController extends Controller
         $plugin = Plugin::getInstance();
 
         if (!Craft::$app->getPlugins()->savePluginSettings($plugin, $settings)) {
-            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn't save settings.'));
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t save settings.'));
             return null;
         }
 

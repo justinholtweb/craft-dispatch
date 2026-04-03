@@ -10,7 +10,7 @@ class SubscriberQuery extends ElementQuery
     public ?string $email = null;
     public ?string $firstName = null;
     public ?string $lastName = null;
-    public ?string $status = null;
+    public ?string $subscriberStatus = null;
     public ?int $userId = null;
     public ?int $mailingListId = null;
 
@@ -34,7 +34,7 @@ class SubscriberQuery extends ElementQuery
 
     public function subscriberStatus(?string $value): self
     {
-        $this->status = $value;
+        $this->subscriberStatus = $value;
         return $this;
     }
 
@@ -77,8 +77,8 @@ class SubscriberQuery extends ElementQuery
             $this->subQuery->andWhere(Db::parseParam('dispatch_subscribers.lastName', $this->lastName));
         }
 
-        if ($this->status !== null) {
-            $this->subQuery->andWhere(Db::parseParam('dispatch_subscribers.status', $this->status));
+        if ($this->subscriberStatus !== null) {
+            $this->subQuery->andWhere(Db::parseParam('dispatch_subscribers.status', $this->subscriberStatus));
         }
 
         if ($this->userId !== null) {

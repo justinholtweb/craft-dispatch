@@ -77,7 +77,7 @@ class ListsController extends Controller
         $save = $listId ? Plugin::getInstance()->lists->update($list) : Plugin::getInstance()->lists->create($list);
 
         if (!$save) {
-            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn't save mailing list.'));
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t save mailing list.'));
             Craft::$app->getUrlManager()->setRouteParams(['list' => $list]);
             return null;
         }

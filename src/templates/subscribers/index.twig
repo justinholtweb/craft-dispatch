@@ -1,19 +1,8 @@
-{% extends 'dispatch/_layouts/plugin' %}
+{% extends '_layouts/elementindex' %}
 
 {% set title = 'Subscribers'|t('dispatch') %}
 {% set selectedSubnavItem = 'subscribers' %}
-{% set elementType = elementType %}
-
-{% block pluginContent %}
-    {{ craft.app.view.renderTemplate('_elements/indexcontainer', {
-        elementType: elementType,
-        sources: null,
-        context: 'index',
-        showStatusMenu: true,
-        showSiteMenu: false,
-        toolbarFlexible: true,
-    }) }}
-{% endblock %}
+{% set showSiteMenu = false %}
 
 {% block actionButton %}
     <div class="btngroup">
