@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
+use craft\elements\User;
 use craft\elements\db\ElementQueryInterface;
 use craft\helpers\Db;
 use craft\helpers\UrlHelper;
@@ -66,7 +67,7 @@ class MailingList extends Element
         return new MailingListQuery(static::class);
     }
 
-    public static function defineSources(string $context = null): array
+    public static function defineSources(?string $context = null): array
     {
         return [
             [
@@ -115,7 +116,7 @@ class MailingList extends Element
         ];
     }
 
-    protected static function defineActions(string $source = null): array
+    protected static function defineActions(?string $source = null): array
     {
         return [
             Delete::class,
@@ -128,17 +129,17 @@ class MailingList extends Element
         return UrlHelper::cpUrl("dispatch/lists/{$this->id}");
     }
 
-    public function canView(\craft\elements\User $user): bool
+    public function canView(User $user): bool
     {
         return $user->can('dispatch:manageLists') || $user->can('dispatch:accessPlugin');
     }
 
-    public function canSave(\craft\elements\User $user): bool
+    public function canSave(User $user): bool
     {
         return $user->can('dispatch:manageLists');
     }
 
-    public function canDelete(\craft\elements\User $user): bool
+    public function canDelete(User $user): bool
     {
         return $user->can('dispatch:manageLists');
     }

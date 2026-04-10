@@ -3,6 +3,7 @@
 namespace justinholtweb\dispatch\models;
 
 use justinholtweb\dispatch\Plugin;
+use yii\base\InvalidConfigException;
 
 class Edition
 {
@@ -38,7 +39,7 @@ class Edition
     public static function requiresLite(string $feature = ''): void
     {
         if (!self::isLite()) {
-            throw new \yii\base\InvalidConfigException(
+            throw new InvalidConfigException(
                 $feature ? "$feature requires Dispatch Lite or Pro." : 'This feature requires Dispatch Lite or Pro.'
             );
         }
@@ -47,7 +48,7 @@ class Edition
     public static function requiresPro(string $feature = ''): void
     {
         if (!self::isPro()) {
-            throw new \yii\base\InvalidConfigException(
+            throw new InvalidConfigException(
                 $feature ? "$feature requires Dispatch Pro." : 'This feature requires Dispatch Pro.'
             );
         }

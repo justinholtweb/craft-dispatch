@@ -125,16 +125,18 @@ class UnsubscribeController extends Controller
         $currentSubscriptions = SubscriptionRecord::findAll(['subscriberId' => $subscriberId]);
         $currentListIds = array_map(fn($s) => $s->mailingListId, $currentSubscriptions);
 
+        $selectedListIdsInt = array_map('intval', $selectedListIds);
+
         // Subscribe to new lists
-        foreach ($selectedListIds as $listId) {
-            if (!in_array((int)$listId, $currentListIds)) {
-                Plugin::getInstance()->subscribers->subscribe($subscriberId, (int)$listId);
+        foreach ($selectedListIdsInt as $listId) {
+            if (!in_array($listId, $currentListIds, true)) {
+                Plugin::getInstance()->subscribers->subscribe($subscriberId, $listId);
             }
         }
 
         // Unsubscribe from removed lists
         foreach ($currentListIds as $listId) {
-            if (!in_array($listId, array_map('intval', $selectedListIds))) {
+            if (!in_array($listId, $selectedListIdsInt, true)) {
                 Plugin::getInstance()->lists->removeSubscriber($listId, $subscriberId);
             }
         }

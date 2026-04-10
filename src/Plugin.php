@@ -74,10 +74,10 @@ class Plugin extends BasePlugin
         parent::init();
 
         Craft::$app->onInit(function () {
-            $this->registerElementTypes();
-            $this->registerCpRoutes();
-            $this->registerSiteRoutes();
-            $this->registerPermissions();
+            $this->_registerElementTypes();
+            $this->_registerCpRoutes();
+            $this->_registerSiteRoutes();
+            $this->_registerPermissions();
         });
     }
 
@@ -144,7 +144,7 @@ class Plugin extends BasePlugin
         ]);
     }
 
-    private function registerElementTypes(): void
+    private function _registerElementTypes(): void
     {
         Event::on(
             Elements::class,
@@ -157,7 +157,7 @@ class Plugin extends BasePlugin
         );
     }
 
-    private function registerCpRoutes(): void
+    private function _registerCpRoutes(): void
     {
         Event::on(
             UrlManager::class,
@@ -189,7 +189,7 @@ class Plugin extends BasePlugin
         );
     }
 
-    private function registerSiteRoutes(): void
+    private function _registerSiteRoutes(): void
     {
         Event::on(
             UrlManager::class,
@@ -212,7 +212,7 @@ class Plugin extends BasePlugin
         );
     }
 
-    private function registerPermissions(): void
+    private function _registerPermissions(): void
     {
         Event::on(
             UserPermissions::class,

@@ -63,7 +63,7 @@ class ApiController extends Controller
             $total = (int)$query->count();
 
             return $this->asJson([
-                'data' => array_map(fn($s) => $this->serializeSubscriber($s), $subscribers),
+                'data' => array_map(fn($s) => $this->_serializeSubscriber($s), $subscribers),
                 'total' => $total,
                 'limit' => $limit,
                 'offset' => $offset,
@@ -87,7 +87,7 @@ class ApiController extends Controller
                 Plugin::getInstance()->subscribers->subscribe($subscriber->id, (int)$listId);
             }
 
-            return $this->asJson(['data' => $this->serializeSubscriber($subscriber)])->setStatusCode(201);
+            return $this->asJson(['data' => $this->_serializeSubscriber($subscriber)])->setStatusCode(201);
         }
 
         return $this->asJson(['error' => 'Method not allowed'])->setStatusCode(405);
@@ -101,7 +101,7 @@ class ApiController extends Controller
             $lists = MailingList::find()->all();
 
             return $this->asJson([
-                'data' => array_map(fn($l) => $this->serializeList($l), $lists),
+                'data' => array_map(fn($l) => $this->_serializeList($l), $lists),
             ]);
         }
 
@@ -126,7 +126,7 @@ class ApiController extends Controller
             $total = (int)$query->count();
 
             return $this->asJson([
-                'data' => array_map(fn($c) => $this->serializeCampaign($c), $campaigns),
+                'data' => array_map(fn($c) => $this->_serializeCampaign($c), $campaigns),
                 'total' => $total,
                 'limit' => $limit,
                 'offset' => $offset,
@@ -199,7 +199,7 @@ class ApiController extends Controller
 
         Plugin::getInstance()->subscribers->subscribe($subscriber->id, $list->id);
 
-        return $this->asJson(['data' => $this->serializeSubscriber($subscriber)])->setStatusCode(200);
+        return $this->asJson(['data' => $this->_serializeSubscriber($subscriber)])->setStatusCode(200);
     }
 
     public function actionUnsubscribe(): Response
@@ -221,7 +221,7 @@ class ApiController extends Controller
         return $this->asJson(['success' => true]);
     }
 
-    private function serializeSubscriber(Subscriber $subscriber): array
+    private function _serializeSubscriber(Subscriber $subscriber): array
     {
         return [
             'id' => $subscriber->id,
@@ -234,7 +234,7 @@ class ApiController extends Controller
         ];
     }
 
-    private function serializeList(MailingList $list): array
+    private function _serializeList(MailingList $list): array
     {
         return [
             'id' => $list->id,
@@ -246,7 +246,7 @@ class ApiController extends Controller
         ];
     }
 
-    private function serializeCampaign(Campaign $campaign): array
+    private function _serializeCampaign(Campaign $campaign): array
     {
         return [
             'id' => $campaign->id,

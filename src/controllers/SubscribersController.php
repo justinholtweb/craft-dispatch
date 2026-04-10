@@ -8,6 +8,7 @@ use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
 use justinholtweb\dispatch\Plugin;
 use justinholtweb\dispatch\queue\jobs\ImportSubscribersJob;
+use justinholtweb\dispatch\records\SubscriptionRecord;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 use yii\web\UploadedFile;
@@ -51,7 +52,7 @@ class SubscribersController extends Controller
         // Get current list subscriptions
         $subscribedListIds = [];
         if (!$isNew) {
-            $subscriptions = \justinholtweb\dispatch\records\SubscriptionRecord::findAll(['subscriberId' => $subscriber->id]);
+            $subscriptions = SubscriptionRecord::findAll(['subscriberId' => $subscriber->id]);
             $subscribedListIds = array_map(fn($s) => $s->mailingListId, $subscriptions);
         }
 
@@ -94,7 +95,7 @@ class SubscribersController extends Controller
 
         // Handle list subscriptions
         $listIds = $request->getBodyParam('listIds', []);
-        $this->syncSubscriptions($subscriber->id, $listIds);
+        $this->_syncSubscriptions($subscriber->id, $listIds);
 
         Craft::$app->getSession()->setNotice(Craft::t('dispatch', 'Subscriber saved.'));
 
@@ -158,22 +159,23 @@ class SubscribersController extends Controller
         return $response;
     }
 
-    private function syncSubscriptions(int $subscriberId, array $listIds): void
+    private function _syncSubscriptions(int $subscriberId, array $listIds): void
     {
         // Get current subscriptions
-        $currentSubscriptions = \justinholtweb\dispatch\records\SubscriptionRecord::findAll(['subscriberId' => $subscriberId]);
+        $currentSubscriptions = SubscriptionRecord::findAll(['subscriberId' => $subscriberId]);
         $currentListIds = array_map(fn($s) => $s->mailingListId, $currentSubscriptions);
 
         // Add new subscriptions
         foreach ($listIds as $listId) {
-            if (!in_array($listId, $currentListIds)) {
+            if (!in_array((int)$listId, $currentListIds, true)) {
                 Plugin::getInstance()->subscribers->subscribe($subscriberId, (int)$listId);
             }
         }
 
         // Remove old subscriptions
+        $postedListIds = array_map('intval', $listIds);
         foreach ($currentListIds as $listId) {
-            if (!in_array($listId, $listIds)) {
+            if (!in_array($listId, $postedListIds, true)) {
                 Plugin::getInstance()->lists->removeSubscriber($listId, $subscriberId);
             }
         }

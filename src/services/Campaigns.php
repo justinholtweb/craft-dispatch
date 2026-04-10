@@ -143,7 +143,7 @@ class Campaigns extends Component
 
         $report->uniqueOpens = (int)TrackingRecord::find()
             ->where(['campaignId' => $campaignId, 'type' => 'open'])
-            ->select('subscriberId')
+            ->select(['subscriberId'])
             ->distinct()
             ->count();
 
@@ -154,7 +154,7 @@ class Campaigns extends Component
 
         $report->uniqueClicks = (int)TrackingRecord::find()
             ->where(['campaignId' => $campaignId, 'type' => 'click'])
-            ->select('subscriberId')
+            ->select(['subscriberId'])
             ->distinct()
             ->count();
 

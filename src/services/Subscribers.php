@@ -4,6 +4,7 @@ namespace justinholtweb\dispatch\services;
 
 use Craft;
 use craft\base\Component;
+use craft\elements\User;
 use craft\helpers\Db;
 use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
@@ -225,7 +226,7 @@ class Subscribers extends Component
     {
         $results = ['synced' => 0, 'created' => 0, 'updated' => 0];
 
-        $userQuery = \craft\elements\User::find();
+        $userQuery = User::find();
 
         if (!empty($userGroupIds)) {
             $userQuery->groupId($userGroupIds);

@@ -11,7 +11,7 @@ class TrackingHelper
 
     public static function generateToken(int ...$parts): string
     {
-        $secret = self::getSecret();
+        $secret = self::_getSecret();
         $data = implode(':', $parts);
 
         return hash_hmac(self::HMAC_ALGO, $data, $secret);
@@ -76,7 +76,7 @@ class TrackingHelper
         );
     }
 
-    private static function getSecret(): string
+    private static function _getSecret(): string
     {
         $secret = Craft::$app->getConfig()->getGeneral()->securityKey;
         return $secret . ':dispatch';

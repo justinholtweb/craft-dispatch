@@ -4,7 +4,9 @@ namespace justinholtweb\dispatch\queue\jobs;
 
 use Craft;
 use craft\queue\BaseJob;
+use justinholtweb\dispatch\elements\Subscriber;
 use justinholtweb\dispatch\Plugin;
+use RuntimeException;
 
 class ImportSubscribersJob extends BaseJob
 {
@@ -14,12 +16,12 @@ class ImportSubscribersJob extends BaseJob
     public function execute($queue): void
     {
         if (!file_exists($this->filePath)) {
-            throw new \RuntimeException("Import file not found: {$this->filePath}");
+            throw new RuntimeException("Import file not found: {$this->filePath}");
         }
 
         $handle = fopen($this->filePath, 'r');
         if (!$handle) {
-            throw new \RuntimeException("Unable to open import file: {$this->filePath}");
+            throw new RuntimeException("Unable to open import file: {$this->filePath}");
         }
 
         // Count total rows for progress
@@ -43,7 +45,7 @@ class ImportSubscribersJob extends BaseJob
         if ($emailIndex === false) {
             fclose($handle);
             @unlink($this->filePath);
-            throw new \RuntimeException('CSV must contain an "email" column.');
+            throw new RuntimeException('CSV must contain an "email" column.');
         }
 
         $firstNameIndex = array_search('firstname', $headers);
@@ -92,7 +94,7 @@ class ImportSubscribersJob extends BaseJob
 
                 $subscribers->subscribe($existing->id, $this->mailingListId);
             } else {
-                $subscriber = new \justinholtweb\dispatch\elements\Subscriber();
+                $subscriber = new Subscriber();
                 $subscriber->email = $email;
                 $subscriber->firstName = $firstNameIndex !== false ? trim($row[$firstNameIndex] ?? '') : null;
                 $subscriber->lastName = $lastNameIndex !== false ? trim($row[$lastNameIndex] ?? '') : null;

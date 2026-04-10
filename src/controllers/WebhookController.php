@@ -36,17 +36,17 @@ class WebhookController extends Controller
         $data = $request->getBodyParams();
 
         $result = match ($provider) {
-            'ses' => $this->handleSes($data),
-            'mailgun' => $this->handleMailgun($data),
-            'postmark' => $this->handlePostmark($data),
-            'sendgrid' => $this->handleSendgrid($data),
+            'ses' => $this->_handleSes($data),
+            'mailgun' => $this->_handleMailgun($data),
+            'postmark' => $this->_handlePostmark($data),
+            'sendgrid' => $this->_handleSendgrid($data),
             default => ['processed' => 0, 'error' => "Unknown provider: {$provider}"],
         };
 
         return $this->asJson($result);
     }
 
-    private function handleSes(array $data): array
+    private function _handleSes(array $data): array
     {
         $processed = 0;
         $message = $data['Message'] ?? null;
@@ -89,7 +89,7 @@ class WebhookController extends Controller
         return ['processed' => $processed];
     }
 
-    private function handleMailgun(array $data): array
+    private function _handleMailgun(array $data): array
     {
         $processed = 0;
         $event = $data['event-data'] ?? $data;
@@ -105,7 +105,7 @@ class WebhookController extends Controller
             return ['processed' => 0];
         }
 
-        if (in_array($eventType, ['failed', 'bounced'])) {
+        if (in_array($eventType, ['failed', 'bounced'], true)) {
             Plugin::getInstance()->tracker->recordBounce(
                 $logRecord->campaignId,
                 $logRecord->subscriberId,
@@ -123,7 +123,7 @@ class WebhookController extends Controller
         return ['processed' => $processed];
     }
 
-    private function handlePostmark(array $data): array
+    private function _handlePostmark(array $data): array
     {
         $processed = 0;
         $recordType = $data['RecordType'] ?? '';
@@ -156,7 +156,7 @@ class WebhookController extends Controller
         return ['processed' => $processed];
     }
 
-    private function handleSendgrid(array $data): array
+    private function _handleSendgrid(array $data): array
     {
         $processed = 0;
 
@@ -178,7 +178,7 @@ class WebhookController extends Controller
                 continue;
             }
 
-            if (in_array($eventType, ['bounce', 'dropped'])) {
+            if (in_array($eventType, ['bounce', 'dropped'], true)) {
                 Plugin::getInstance()->tracker->recordBounce(
                     $logRecord->campaignId,
                     $logRecord->subscriberId,

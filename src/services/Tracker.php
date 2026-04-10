@@ -5,10 +5,12 @@ namespace justinholtweb\dispatch\services;
 use Craft;
 use craft\base\Component;
 use craft\helpers\Db;
+use justinholtweb\dispatch\elements\Subscriber;
 use justinholtweb\dispatch\events\TrackingEvent;
 use justinholtweb\dispatch\models\Edition;
 use justinholtweb\dispatch\records\SendLogRecord;
 use justinholtweb\dispatch\records\TrackingRecord;
+use yii\db\Query;
 
 class Tracker extends Component
 {
@@ -84,7 +86,7 @@ class Tracker extends Component
         }
 
         // Update subscriber status
-        $subscriber = \justinholtweb\dispatch\elements\Subscriber::find()->id($subscriberId)->one();
+        $subscriber = Subscriber::find()->id($subscriberId)->one();
         if ($subscriber) {
             $subscriber->status = 'bounced';
             Craft::$app->getElements()->saveElement($subscriber);
@@ -103,7 +105,7 @@ class Tracker extends Component
     public function recordComplaint(int $campaignId, int $subscriberId): bool
     {
         // Update subscriber status
-        $subscriber = \justinholtweb\dispatch\elements\Subscriber::find()->id($subscriberId)->one();
+        $subscriber = Subscriber::find()->id($subscriberId)->one();
         if ($subscriber) {
             $subscriber->status = 'complained';
             Craft::$app->getElements()->saveElement($subscriber);
@@ -118,26 +120,26 @@ class Tracker extends Component
             'totalOpens' => (int)TrackingRecord::find()
                 ->where(['campaignId' => $campaignId, 'type' => 'open'])
                 ->count(),
-            'uniqueOpens' => (int)(new \yii\db\Query())
+            'uniqueOpens' => (int)(new Query())
                 ->from('{{%dispatch_tracking}}')
                 ->where(['campaignId' => $campaignId, 'type' => 'open'])
-                ->select('subscriberId')
+                ->select(['subscriberId'])
                 ->distinct()
                 ->count(),
             'totalClicks' => (int)TrackingRecord::find()
                 ->where(['campaignId' => $campaignId, 'type' => 'click'])
                 ->count(),
-            'uniqueClicks' => (int)(new \yii\db\Query())
+            'uniqueClicks' => (int)(new Query())
                 ->from('{{%dispatch_tracking}}')
                 ->where(['campaignId' => $campaignId, 'type' => 'click'])
-                ->select('subscriberId')
+                ->select(['subscriberId'])
                 ->distinct()
                 ->count(),
-            'topLinks' => (new \yii\db\Query())
+            'topLinks' => (new Query())
                 ->from('{{%dispatch_tracking}}')
                 ->where(['campaignId' => $campaignId, 'type' => 'click'])
-                ->select(['url', 'COUNT(*) as clicks'])
-                ->groupBy('url')
+                ->select(['url', 'clicks' => 'COUNT(*)'])
+                ->groupBy(['url'])
                 ->orderBy(['clicks' => SORT_DESC])
                 ->limit(10)
                 ->all(),

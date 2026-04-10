@@ -5,6 +5,7 @@ namespace justinholtweb\dispatch\services;
 use Craft;
 use craft\base\Component;
 use craft\helpers\Db;
+use craft\helpers\UrlHelper;
 use craft\mail\Message;
 use justinholtweb\dispatch\elements\Campaign;
 use justinholtweb\dispatch\elements\Subscriber;
@@ -26,7 +27,7 @@ class Sender extends Component
             'campaign' => $campaign,
             'subscriber' => $subscriber,
             'settings' => $settings,
-            'unsubscribeUrl' => $subscriber ? $this->getUnsubscribeUrl($subscriber, $campaign) : '#',
+            'unsubscribeUrl' => $subscriber ? $this->_getUnsubscribeUrl($subscriber, $campaign) : '#',
         ];
 
         // Render body content
@@ -98,7 +99,7 @@ class Sender extends Component
         }
 
         // Add List-Unsubscribe headers (RFC 8058)
-        $unsubscribeUrl = $this->getUnsubscribeUrl($subscriber, $campaign);
+        $unsubscribeUrl = $this->_getUnsubscribeUrl($subscriber, $campaign);
         $message->getSwiftMessage()->getHeaders()->addTextHeader('List-Unsubscribe', '<' . $unsubscribeUrl . '>');
         $message->getSwiftMessage()->getHeaders()->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
 
@@ -155,7 +156,7 @@ class Sender extends Component
         return $results;
     }
 
-    private function getUnsubscribeUrl(Subscriber $subscriber, Campaign $campaign): string
+    private function _getUnsubscribeUrl(Subscriber $subscriber, Campaign $campaign): string
     {
         $settings = Plugin::getInstance()->getSettings();
 
@@ -169,6 +170,6 @@ class Sender extends Component
             return $settings->unsubscribeUrl . '?' . http_build_query($params);
         }
 
-        return craft\helpers\UrlHelper::siteUrl('dispatch/unsubscribe', $params);
+        return UrlHelper::siteUrl('dispatch/unsubscribe', $params);
     }
 }

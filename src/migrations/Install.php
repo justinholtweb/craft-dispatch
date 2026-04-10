@@ -8,9 +8,9 @@ class Install extends Migration
 {
     public function safeUp(): bool
     {
-        $this->createTables();
-        $this->createIndexes();
-        $this->addForeignKeys();
+        $this->_createTables();
+        $this->_createIndexes();
+        $this->_addForeignKeys();
 
         return true;
     }
@@ -27,7 +27,7 @@ class Install extends Migration
         return true;
     }
 
-    private function createTables(): void
+    private function _createTables(): void
     {
         // Subscribers
         $this->createTable('{{%dispatch_subscribers}}', [
@@ -115,7 +115,7 @@ class Install extends Migration
         ]);
     }
 
-    private function createIndexes(): void
+    private function _createIndexes(): void
     {
         // Subscribers
         $this->createIndex(null, '{{%dispatch_subscribers}}', ['email'], true);
@@ -143,7 +143,7 @@ class Install extends Migration
         $this->createIndex(null, '{{%dispatch_tracking}}', ['type']);
     }
 
-    private function addForeignKeys(): void
+    private function _addForeignKeys(): void
     {
         // Subscribers → elements
         $this->addForeignKey(null, '{{%dispatch_subscribers}}', ['id'], '{{%elements}}', ['id'], 'CASCADE', null);

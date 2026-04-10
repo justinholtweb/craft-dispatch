@@ -9,6 +9,7 @@ use justinholtweb\dispatch\elements\Subscriber;
 use justinholtweb\dispatch\enums\CampaignStatus;
 use justinholtweb\dispatch\events\CampaignEvent;
 use justinholtweb\dispatch\Plugin;
+use RuntimeException;
 
 class SendCampaignJob extends BaseJob
 {
@@ -18,20 +19,20 @@ class SendCampaignJob extends BaseJob
     {
         $campaign = Plugin::getInstance()->campaigns->getById($this->campaignId);
         if (!$campaign) {
-            throw new \RuntimeException("Campaign {$this->campaignId} not found.");
+            throw new RuntimeException("Campaign {$this->campaignId} not found.");
         }
 
         if (!$campaign->mailingListId) {
-            $this->markFailed($campaign, 'No mailing list assigned.');
+            $this->_markFailed($campaign, 'No mailing list assigned.');
             return;
         }
 
         // Fire before-send event
         $event = new CampaignEvent(['campaign' => $campaign]);
-        Campaign::trigger(Campaign::class, Campaign::EVENT_BEFORE_SEND ?? 'beforeSend', $event);
+        Campaign::trigger(Campaign::class, 'beforeSend', $event);
 
         if (!$event->isValid) {
-            $this->markFailed($campaign, 'Send cancelled by event handler.');
+            $this->_markFailed($campaign, 'Send cancelled by event handler.');
             return;
         }
 
@@ -46,7 +47,7 @@ class SendCampaignJob extends BaseJob
         $totalCount = (int)$subscriberQuery->count();
 
         if ($totalCount === 0) {
-            $this->markFailed($campaign, 'No active subscribers in the mailing list.');
+            $this->_markFailed($campaign, 'No active subscribers in the mailing list.');
             return;
         }
 
@@ -94,7 +95,7 @@ class SendCampaignJob extends BaseJob
 
         // Fire after-send event
         $event = new CampaignEvent(['campaign' => $campaign]);
-        Campaign::trigger(Campaign::class, Campaign::EVENT_AFTER_SEND ?? 'afterSend', $event);
+        Campaign::trigger(Campaign::class, 'afterSend', $event);
     }
 
     protected function defaultDescription(): ?string
@@ -102,7 +103,7 @@ class SendCampaignJob extends BaseJob
         return Craft::t('dispatch', 'Sending campaign #{id}', ['id' => $this->campaignId]);
     }
 
-    private function markFailed(Campaign $campaign, string $reason): void
+    private function _markFailed(Campaign $campaign, string $reason): void
     {
         $campaign->campaignStatus = CampaignStatus::Failed->value;
         Craft::$app->getElements()->saveElement($campaign);
