@@ -16,6 +16,23 @@ All notable changes to this project will be documented in this file.
 
 - Click links in already-sent campaigns use the old `(cid, sid)`-only token and will fail verification under the new check. Recipients clicking those links will land on the site home rather than the original destination, and clicks will not be recorded. Re-send campaigns whose tracked links must keep working.
 
+## 5.0.1 - 2026-02-20
+
+### Fixes
+Critical bug fixed:
+  - services/Sender.php:172 was calling craft\helpers\UrlHelper::siteUrl(...) with a bare namespace — inside the plugin namespace PHP would have resolved this to a nonexistent  justinholtweb\dispatch\services\craft\helpers\UrlHelper and crashed. Added the use craft\helpers\UrlHelper; import.
+
+Also fixed a secondary crash-waiting-to-happen: SendCampaignJob.php referenced Campaign::EVENT_BEFORE_SEND ?? 'beforeSend' — but those constants don't exist, and ?? doesn't catch undefined class constants. Replaced with string literals.
+
+Craft coding-standards violations fixed:
+
+1. Private methods prefixed with _ (Craft requires it) — 15 methods across 9 files: Plugin, Install migration, TrackingHelper, CssInliner, Sender, SubscribersController, WebhookController, ApiController, SendCampaignJob.
+3. PHP 8.4 implicit-nullable deprecation — string $x = null → ?string $x = null in defineSources/defineActions across Subscriber, Campaign, MailingList (6 signatures).
+4. Inline FQCNs replaced with imports — \craft\elements\User in 3 element files, \RuntimeException in 2 jobs, \yii\db\Query in Tracker, \yii\base\InvalidConfigException in Edition, \justinholtweb\dispatch\records\SubscriptionRecord in SubscribersController, and \justinholtweb\dispatch\elements\Subscriber in Tracker and ImportSubscribersJob.
+5. in_array() strict flag added — 4 call sites in SubscribersController, UnsubscribeController, WebhookController.
+6. Query select/groupBy → array form — Tracker::getStats() and Campaigns::getReport() now use ['col'] instead of 'col'; also fixed the COUNT(*) as clicks expression to Yii's ['alias' => 'expr'] form.
+
+
 ## 5.0.0 - 2026-02-12
 
 ### Added
