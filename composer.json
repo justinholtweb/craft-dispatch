@@ -3,6 +3,7 @@
     "description": "Lightweight email marketing and newsletter plugin for Craft CMS 5. Manage subscribers, send campaigns, and track delivery natively.",
     "type": "craft-plugin",
     "license": "proprietary",
+    "version": "5.0.2",
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {

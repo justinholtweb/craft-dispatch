@@ -23,6 +23,20 @@ class TrackingHelper
         return hash_equals($expected, $token);
     }
 
+    public static function generateClickToken(int $campaignId, int $subscriberId, string $url): string
+    {
+        $secret = self::_getSecret();
+        $data = $campaignId . ':' . $subscriberId . ':' . $url;
+
+        return hash_hmac(self::HMAC_ALGO, $data, $secret);
+    }
+
+    public static function verifyClickToken(string $token, int $campaignId, int $subscriberId, string $url): bool
+    {
+        $expected = self::generateClickToken($campaignId, $subscriberId, $url);
+        return hash_equals($expected, $token);
+    }
+
     public static function injectTrackingPixel(string $html, int $campaignId, int $subscriberId): string
     {
         $token = self::generateToken($campaignId, $subscriberId);
@@ -61,7 +75,7 @@ class TrackingHelper
                     return $match[0];
                 }
 
-                $token = self::generateToken($campaignId, $subscriberId);
+                $token = self::generateClickToken($campaignId, $subscriberId, $url);
 
                 $trackUrl = UrlHelper::siteUrl('dispatch/track/click', [
                     'cid' => $campaignId,

@@ -56,22 +56,25 @@ class TrackingController extends Controller
         $url = $request->getQueryParam('url', '');
         $token = $request->getQueryParam('token', '');
 
-        if (!$url) {
-            return $this->redirect(Craft::$app->getSites()->getCurrentSite()->getBaseUrl());
+        $siteHome = Craft::$app->getSites()->getCurrentSite()->getBaseUrl();
+
+        // The HMAC binds (campaignId, subscriberId, url). If verification fails,
+        // the URL is attacker-controlled — never redirect to it (open redirect).
+        if (!$url || !$campaignId || !$subscriberId
+            || !TrackingHelper::verifyClickToken($token, $campaignId, $subscriberId, $url)) {
+            return $this->redirect($siteHome);
         }
 
-        if ($campaignId && $subscriberId && TrackingHelper::verifyToken($token, $campaignId, $subscriberId)) {
-            try {
-                Plugin::getInstance()->tracker->recordClick(
-                    $campaignId,
-                    $subscriberId,
-                    $url,
-                    $request->getUserIP(),
-                    $request->getUserAgent(),
-                );
-            } catch (\Throwable $e) {
-                Craft::warning("Failed to record click: " . $e->getMessage(), 'dispatch');
-            }
+        try {
+            Plugin::getInstance()->tracker->recordClick(
+                $campaignId,
+                $subscriberId,
+                $url,
+                $request->getUserIP(),
+                $request->getUserAgent(),
+            );
+        } catch (\Throwable $e) {
+            Craft::warning("Failed to record click: " . $e->getMessage(), 'dispatch');
         }
 
         return $this->redirect($url);
