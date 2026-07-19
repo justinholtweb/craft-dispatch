@@ -4,6 +4,7 @@ namespace justinholtweb\dispatch\services;
 
 use Craft;
 use craft\base\Component;
+use craft\helpers\Db;
 use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
 use justinholtweb\dispatch\models\Edition;
@@ -66,7 +67,7 @@ class Lists extends Component
         $record = new SubscriptionRecord();
         $record->subscriberId = $subscriberId;
         $record->mailingListId = $mailingListId;
-        $record->subscribedAt = new \DateTime();
+        $record->subscribedAt = Db::prepareDateForDb(new \DateTime());
 
         $result = $record->save();
 

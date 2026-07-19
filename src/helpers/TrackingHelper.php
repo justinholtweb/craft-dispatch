@@ -63,7 +63,7 @@ class TrackingHelper
     {
         return preg_replace_callback(
             '/<a\s([^>]*?)href="([^"]+)"([^>]*?)>/i',
-            function ($match) use ($campaignId, $subscriberId) {
+            function($match) use ($campaignId, $subscriberId) {
                 $url = $match[2];
 
                 // Skip anchors, mailto, tel, and unsubscribe links

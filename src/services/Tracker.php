@@ -75,6 +75,7 @@ class Tracker extends Component
     public function recordBounce(int $campaignId, int $subscriberId, string $errorMessage = ''): bool
     {
         // Update send log
+        /** @var SendLogRecord|null $logRecord */
         $logRecord = SendLogRecord::find()
             ->where(['campaignId' => $campaignId, 'subscriberId' => $subscriberId])
             ->one();

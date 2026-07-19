@@ -6,3 +6,11 @@ composer.lock
 .vscode/
 *.DS_Store
 node_modules/
+
+# Local DDEV test environment (kept out of the repo)
+/.ddev/
+
+# Codeception build artifacts
+/tests/_output/
+/tests/_support/_generated/
+/tests/_craft/storage/

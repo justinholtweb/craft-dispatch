@@ -4,7 +4,13 @@ namespace justinholtweb\dispatch\elements\db;
 
 use craft\elements\db\ElementQuery;
 use craft\helpers\Db;
+use justinholtweb\dispatch\elements\MailingList;
 
+/**
+ * @method MailingList[] all($db = null)
+ * @method MailingList|null one($db = null)
+ * @method MailingList|null nth(int $n, ?\yii\db\Connection $db = null)
+ */
 class MailingListQuery extends ElementQuery
 {
     public ?string $name = null;

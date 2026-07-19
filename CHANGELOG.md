@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 5.0.3 - 2026-07-19
+
+### Fixes
+
+Bugs surfaced by adding PHPStan (level 5) and a Codeception unit suite, then fixed:
+
+- **Email sending was broken on Craft 5.** `services/Sender.php` called `Message::getSwiftMessage()`, which no longer exists now that Craft uses Symfony Mailer — every send would throw a fatal `Call to an undefined method` error. Reworked to add the RFC 8058 `List-Unsubscribe` headers via `Message::addHeader()` and to read the sent message ID from the `Message-ID` header.
+- **Custom control-panel index columns never rendered.** `Campaign` and `Subscriber` overrode `tableAttributeHtml()`, which Craft 5 renamed to `attributeHtml()`. The overrides were dead code and the `parent::` call would fatal. Renamed both to `attributeHtml()` so the status badge, mailing-list name, and full-name columns work again.
+- **Campaign `beforeSend` / `afterSend` events never fired.** `SendCampaignJob` invoked `Campaign::trigger()` statically with the wrong arguments, the `EVENT_BEFORE_SEND` / `EVENT_AFTER_SEND` constants did not exist, and `CampaignEvent` had no `$isValid` property (so the cancel check silently errored). Added the event constants, switched to an instance `trigger()` call, and gave `CampaignEvent` an `$isValid` flag so handlers can cancel a send.
+- **CSS inliner corrupted self-closing tags.** Styling a void element such as `<img … />` or `<br />` swallowed the trailing slash, producing malformed markup like `<img src="x" / style="…">`. Fixed the tag, class, and id selector patterns to preserve the self-closing marker.
+- **`Lists::addSubscriber()` assigned a `DateTime` to the string `subscribedAt` column.** Now formatted with `Db::prepareDateForDb()`, consistent with the rest of the plugin.
+- Type-safety cleanups: concrete return types on the element query classes, annotations on Active Record lookups, and removal of unused imports.
+
+### Added
+
+- Local DDEV environment plus PHPStan, ECS, and Codeception configuration for running the plugin's static analysis and tests. First unit tests cover `CssInliner`, `TrackingHelper`, and the status enums. Composer scripts: `composer phpstan`, `composer ecs`, `composer test`.
+
 ## 5.0.2 - 2026-04-30
 
 ### Security

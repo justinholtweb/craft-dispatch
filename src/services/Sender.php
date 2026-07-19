@@ -100,8 +100,8 @@ class Sender extends Component
 
         // Add List-Unsubscribe headers (RFC 8058)
         $unsubscribeUrl = $this->_getUnsubscribeUrl($subscriber, $campaign);
-        $message->getSwiftMessage()->getHeaders()->addTextHeader('List-Unsubscribe', '<' . $unsubscribeUrl . '>');
-        $message->getSwiftMessage()->getHeaders()->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
+        $message->addHeader('List-Unsubscribe', '<' . $unsubscribeUrl . '>');
+        $message->addHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
 
         $logRecord = new SendLogRecord();
         $logRecord->campaignId = $campaign->id;
@@ -115,8 +115,10 @@ class Sender extends Component
                 $logRecord->status = 'sent';
                 // Try to capture message ID
                 try {
-                    $messageId = $message->getSwiftMessage()->getId();
-                    $logRecord->messageId = $messageId;
+                    $messageId = $message->getHeader('Message-ID')[0] ?? null;
+                    if ($messageId !== null) {
+                        $logRecord->messageId = $messageId;
+                    }
                 } catch (\Throwable) {
                     // Not all transports provide a message ID
                 }

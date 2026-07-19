@@ -7,13 +7,10 @@ use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
 use craft\elements\User;
-use craft\elements\conditions\ElementConditionInterface;
-use craft\elements\db\ElementQueryInterface;
 use craft\helpers\Db;
 use craft\helpers\UrlHelper;
 use justinholtweb\dispatch\elements\db\SubscriberQuery;
 use justinholtweb\dispatch\enums\SubscriberStatus;
-use justinholtweb\dispatch\Plugin;
 use justinholtweb\dispatch\records\SubscriberRecord;
 use yii\base\InvalidConfigException;
 
@@ -177,11 +174,11 @@ class Subscriber extends Element
         return trim(($this->firstName ?? '') . ' ' . ($this->lastName ?? ''));
     }
 
-    protected function tableAttributeHtml(string $attribute): string
+    protected function attributeHtml(string $attribute): string
     {
         return match ($attribute) {
             'fullName' => $this->getFullName(),
-            default => parent::tableAttributeHtml($attribute),
+            default => parent::attributeHtml($attribute),
         };
     }
 

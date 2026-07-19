@@ -3,7 +3,6 @@
 namespace justinholtweb\dispatch;
 
 use Craft;
-use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterComponentTypesEvent;
@@ -73,7 +72,7 @@ class Plugin extends BasePlugin
     {
         parent::init();
 
-        Craft::$app->onInit(function () {
+        Craft::$app->onInit(function() {
             $this->_registerElementTypes();
             $this->_registerCpRoutes();
             $this->_registerSiteRoutes();
@@ -149,7 +148,7 @@ class Plugin extends BasePlugin
         Event::on(
             Elements::class,
             Elements::EVENT_REGISTER_ELEMENT_TYPES,
-            function (RegisterComponentTypesEvent $event) {
+            function(RegisterComponentTypesEvent $event) {
                 $event->types[] = Subscriber::class;
                 $event->types[] = Campaign::class;
                 $event->types[] = MailingList::class;
@@ -162,7 +161,7 @@ class Plugin extends BasePlugin
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
+            function(RegisterUrlRulesEvent $event) {
                 // Dashboard
                 $event->rules['dispatch/dashboard'] = 'dispatch/campaigns/dashboard';
 
@@ -194,7 +193,7 @@ class Plugin extends BasePlugin
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_SITE_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
+            function(RegisterUrlRulesEvent $event) {
                 // Tracking
                 $event->rules['dispatch/track/open'] = 'dispatch/tracking/open';
                 $event->rules['dispatch/track/click'] = 'dispatch/tracking/click';
@@ -217,7 +216,7 @@ class Plugin extends BasePlugin
         Event::on(
             UserPermissions::class,
             UserPermissions::EVENT_REGISTER_PERMISSIONS,
-            function (RegisterUserPermissionsEvent $event) {
+            function(RegisterUserPermissionsEvent $event) {
                 $event->permissions[] = [
                     'heading' => Craft::t('dispatch', 'Dispatch'),
                     'permissions' => [

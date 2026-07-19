@@ -66,6 +66,7 @@ class WebhookController extends Controller
             return ['processed' => 0];
         }
 
+        /** @var SendLogRecord|null $logRecord */
         $logRecord = SendLogRecord::find()->where(['messageId' => $messageId])->one();
         if (!$logRecord) {
             return ['processed' => 0];
@@ -100,6 +101,7 @@ class WebhookController extends Controller
             return ['processed' => 0];
         }
 
+        /** @var SendLogRecord|null $logRecord */
         $logRecord = SendLogRecord::find()->where(['messageId' => $messageId])->one();
         if (!$logRecord) {
             return ['processed' => 0];
@@ -133,6 +135,7 @@ class WebhookController extends Controller
             return ['processed' => 0];
         }
 
+        /** @var SendLogRecord|null $logRecord */
         $logRecord = SendLogRecord::find()->where(['messageId' => $messageId])->one();
         if (!$logRecord) {
             return ['processed' => 0];
@@ -173,6 +176,7 @@ class WebhookController extends Controller
             // SendGrid message IDs have a filter suffix
             $messageId = explode('.', $messageId)[0];
 
+            /** @var SendLogRecord|null $logRecord */
             $logRecord = SendLogRecord::find()->where(['like', 'messageId', $messageId])->one();
             if (!$logRecord) {
                 continue;

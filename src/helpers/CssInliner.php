@@ -63,8 +63,8 @@ class CssInliner
                 // Class selector
                 $className = substr($selector, 1);
                 $html = preg_replace_callback(
-                    '/(<[a-zA-Z][^>]*class="[^"]*\b' . preg_quote($className, '/') . '\b[^"]*"[^>]*)(\/?>)/i',
-                    function ($match) use ($declarations) {
+                    '/(<[a-zA-Z][^>]*class="[^"]*\b' . preg_quote($className, '/') . '\b[^"]*"[^>]*?)(\s*\/?>)/i',
+                    function($match) use ($declarations) {
                         return self::_addInlineStyle($match[1], $declarations) . $match[2];
                     },
                     $html
@@ -73,8 +73,8 @@ class CssInliner
                 // ID selector
                 $id = substr($selector, 1);
                 $html = preg_replace_callback(
-                    '/(<[a-zA-Z][^>]*id="' . preg_quote($id, '/') . '"[^>]*)(\/?>)/i',
-                    function ($match) use ($declarations) {
+                    '/(<[a-zA-Z][^>]*id="' . preg_quote($id, '/') . '"[^>]*?)(\s*\/?>)/i',
+                    function($match) use ($declarations) {
                         return self::_addInlineStyle($match[1], $declarations) . $match[2];
                     },
                     $html
@@ -82,9 +82,9 @@ class CssInliner
             } else {
                 // Tag selector
                 $html = preg_replace_callback(
-                    '/(<' . preg_quote($selector, '/') . ')(\s[^>]*)?(\/?>)/i',
-                    function ($match) use ($declarations) {
-                        $tag = $match[1] . ($match[2] ?? '');
+                    '/(<' . preg_quote($selector, '/') . ')(\s[^>]*?)?(\s*\/?>)/i',
+                    function($match) use ($declarations) {
+                        $tag = $match[1] . $match[2];
                         return self::_addInlineStyle($tag, $declarations) . $match[3];
                     },
                     $html

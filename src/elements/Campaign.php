@@ -7,17 +7,25 @@ use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
 use craft\elements\User;
-use craft\elements\db\ElementQueryInterface;
-use craft\helpers\Db;
 use craft\helpers\UrlHelper;
 use justinholtweb\dispatch\elements\db\CampaignQuery;
 use justinholtweb\dispatch\enums\CampaignStatus;
-use justinholtweb\dispatch\Plugin;
 use justinholtweb\dispatch\records\CampaignRecord;
 use yii\base\InvalidConfigException;
 
 class Campaign extends Element
 {
+    /**
+     * @event CampaignEvent The event fired before a campaign is sent. Set
+     * `$event->isValid` to `false` to cancel the send.
+     */
+    public const EVENT_BEFORE_SEND = 'beforeSend';
+
+    /**
+     * @event CampaignEvent The event fired after a campaign has been sent.
+     */
+    public const EVENT_AFTER_SEND = 'afterSend';
+
     public ?string $subject = null;
     public ?string $fromName = null;
     public ?string $fromEmail = null;
@@ -179,12 +187,12 @@ class Campaign extends Element
         return UrlHelper::cpUrl("dispatch/campaigns/{$this->id}");
     }
 
-    protected function tableAttributeHtml(string $attribute): string
+    protected function attributeHtml(string $attribute): string
     {
         return match ($attribute) {
             'campaignStatus' => '<span class="status ' . CampaignStatus::from($this->campaignStatus)->color() . '"></span>' . CampaignStatus::from($this->campaignStatus)->label(),
             'mailingListId' => $this->getMailingList()?->title ?? '—',
-            default => parent::tableAttributeHtml($attribute),
+            default => parent::attributeHtml($attribute),
         };
     }
 

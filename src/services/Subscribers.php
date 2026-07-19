@@ -8,7 +8,6 @@ use craft\elements\User;
 use craft\helpers\Db;
 use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
-use justinholtweb\dispatch\Plugin;
 use justinholtweb\dispatch\records\SubscriptionRecord;
 
 class Subscribers extends Component

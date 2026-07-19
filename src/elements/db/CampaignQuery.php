@@ -4,7 +4,13 @@ namespace justinholtweb\dispatch\elements\db;
 
 use craft\elements\db\ElementQuery;
 use craft\helpers\Db;
+use justinholtweb\dispatch\elements\Campaign;
 
+/**
+ * @method Campaign[] all($db = null)
+ * @method Campaign|null one($db = null)
+ * @method Campaign|null nth(int $n, ?\yii\db\Connection $db = null)
+ */
 class CampaignQuery extends ElementQuery
 {
     public ?string $subject = null;

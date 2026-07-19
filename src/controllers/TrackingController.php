@@ -5,7 +5,6 @@ namespace justinholtweb\dispatch\controllers;
 use Craft;
 use craft\web\Controller;
 use justinholtweb\dispatch\helpers\TrackingHelper;
-use justinholtweb\dispatch\models\Edition;
 use justinholtweb\dispatch\Plugin;
 use yii\web\Response;
 

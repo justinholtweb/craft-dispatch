@@ -29,7 +29,7 @@ class SendCampaignJob extends BaseJob
 
         // Fire before-send event
         $event = new CampaignEvent(['campaign' => $campaign]);
-        Campaign::trigger(Campaign::class, 'beforeSend', $event);
+        $campaign->trigger(Campaign::EVENT_BEFORE_SEND, $event);
 
         if (!$event->isValid) {
             $this->_markFailed($campaign, 'Send cancelled by event handler.');
@@ -95,7 +95,7 @@ class SendCampaignJob extends BaseJob
 
         // Fire after-send event
         $event = new CampaignEvent(['campaign' => $campaign]);
-        Campaign::trigger(Campaign::class, 'afterSend', $event);
+        $campaign->trigger(Campaign::EVENT_AFTER_SEND, $event);
     }
 
     protected function defaultDescription(): ?string

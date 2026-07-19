@@ -3,7 +3,7 @@
     "description": "Lightweight email marketing and newsletter plugin for Craft CMS 5. Manage subscribers, send campaigns, and track delivery natively.",
     "type": "craft-plugin",
     "license": "proprietary",
-    "version": "5.0.2",
+    "version": "5.0.3",
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
@@ -13,12 +13,25 @@
     "require-dev": {
         "codeception/codeception": "^5.0",
         "craftcms/ecs": "dev-main",
-        "craftcms/phpstan": "dev-main"
+        "craftcms/phpstan": "dev-main",
+        "codeception/module-asserts": "^3.3",
+        "codeception/module-yii2": "^1.1"
     },
     "autoload": {
         "psr-4": {
             "justinholtweb\\dispatch\\": "src/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "justinholtweb\\dispatchtests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "ecs": "ecs check",
+        "ecs-fix": "ecs check --fix",
+        "test": "codecept run unit"
     },
     "support": {
         "issues": "https://github.com/justinholtweb/craft-dispatch/issues",
@@ -32,5 +45,12 @@
         "documentationUrl": "https://github.com/justinholtweb/craft-dispatch",
         "description": "Lightweight email marketing and newsletter plugin for Craft CMS.",
         "class": "justinholtweb\\dispatch\\Plugin"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true,
+            "php-http/discovery": true
+        }
     }
 }

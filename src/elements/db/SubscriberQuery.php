@@ -4,7 +4,13 @@ namespace justinholtweb\dispatch\elements\db;
 
 use craft\elements\db\ElementQuery;
 use craft\helpers\Db;
+use justinholtweb\dispatch\elements\Subscriber;
 
+/**
+ * @method Subscriber[] all($db = null)
+ * @method Subscriber|null one($db = null)
+ * @method Subscriber|null nth(int $n, ?\yii\db\Connection $db = null)
+ */
 class SubscriberQuery extends ElementQuery
 {
     public ?string $email = null;

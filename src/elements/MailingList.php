@@ -7,11 +7,8 @@ use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
 use craft\elements\User;
-use craft\elements\db\ElementQueryInterface;
-use craft\helpers\Db;
 use craft\helpers\UrlHelper;
 use justinholtweb\dispatch\elements\db\MailingListQuery;
-use justinholtweb\dispatch\Plugin;
 use justinholtweb\dispatch\records\MailingListRecord;
 use yii\base\InvalidConfigException;
 
