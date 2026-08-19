@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 5.0.4 - 2026-08-19
+
+### Fixes
+
+- **Settings → Plugins → Dispatch rendered a broken, double-nested settings page.** The plugin's settings screen is a full control panel page — it extends a layout, sets `fullPageForm`, and posts to the plugin's own save action — so rendering it through Craft's `settingsHtml()` embedded a whole page inside Craft's own settings page, nesting a form inside a form and leaving two `action` inputs in the markup. `Plugin::getSettingsResponse()` now redirects to `dispatch/settings` instead.
+
 ## 5.0.3 - 2026-07-19
 
 ### Fixes

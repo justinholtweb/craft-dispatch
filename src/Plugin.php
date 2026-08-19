@@ -8,6 +8,7 @@ use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
+use craft\helpers\UrlHelper;
 use craft\services\Elements;
 use craft\services\UserPermissions;
 use craft\web\UrlManager;
@@ -133,6 +134,19 @@ class Plugin extends BasePlugin
     protected function createSettingsModel(): ?Model
     {
         return new Settings();
+    }
+
+    /**
+     * Sends Settings → Plugins to the plugin's own settings screen.
+     *
+     * That screen is a full control panel page — it `extends` a layout, sets `fullPageForm` and
+     * posts to this plugin's own save action. Rendering it through `settingsHtml()` as well put a
+     * whole page inside Craft's settings page, which nests a form inside a form and leaves two
+     * `action` inputs in it. Same approach as the rest of the family.
+     */
+    public function getSettingsResponse(): mixed
+    {
+        return Craft::$app->getResponse()->redirect(UrlHelper::cpUrl('dispatch/settings'));
     }
 
     protected function settingsHtml(): ?string
