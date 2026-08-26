@@ -9,6 +9,7 @@ use craft\elements\actions\Restore;
 use craft\elements\User;
 use craft\helpers\Db;
 use craft\helpers\UrlHelper;
+use craft\enums\Color;
 use justinholtweb\dispatch\elements\db\SubscriberQuery;
 use justinholtweb\dispatch\enums\SubscriberStatus;
 use justinholtweb\dispatch\records\SubscriberRecord;
@@ -68,10 +69,10 @@ class Subscriber extends Element
     public static function statuses(): array
     {
         return [
-            'active' => ['label' => Craft::t('dispatch', 'Active'), 'color' => 'green'],
-            'unsubscribed' => ['label' => Craft::t('dispatch', 'Unsubscribed'), 'color' => 'white'],
-            'bounced' => ['label' => Craft::t('dispatch', 'Bounced'), 'color' => 'orange'],
-            'complained' => ['label' => Craft::t('dispatch', 'Complained'), 'color' => 'red'],
+            'active' => ['label' => Craft::t('dispatch', 'Active'), 'color' => Color::Green],
+            'unsubscribed' => ['label' => Craft::t('dispatch', 'Unsubscribed'), 'color' => Color::White],
+            'bounced' => ['label' => Craft::t('dispatch', 'Bounced'), 'color' => Color::Orange],
+            'complained' => ['label' => Craft::t('dispatch', 'Complained'), 'color' => Color::Red],
         ];
     }
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 5.0.5 - 2026-08-26
+
+### Fixes
+
+- **The Subscribers and Campaigns indexes listed nothing at all.** Craft 5 expects `statuses()` to return `craft\enums\Color` cases; the string colours these elements returned made `Cp::componentStatusLabelHtml()` fail with "Attempt to read property `value` on string" as soon as the status column rendered. The Ajax call 500'd and the table was never replaced, so a list of fourteen subscribers displayed as an empty screen.
+
 ## 5.0.4 - 2026-08-19
 
 ### Fixes

@@ -8,6 +8,7 @@ use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
 use craft\elements\User;
 use craft\helpers\UrlHelper;
+use craft\enums\Color;
 use justinholtweb\dispatch\elements\db\CampaignQuery;
 use justinholtweb\dispatch\enums\CampaignStatus;
 use justinholtweb\dispatch\records\CampaignRecord;
@@ -83,11 +84,11 @@ class Campaign extends Element
     public static function statuses(): array
     {
         return [
-            'draft' => ['label' => Craft::t('dispatch', 'Draft'), 'color' => 'white'],
-            'scheduled' => ['label' => Craft::t('dispatch', 'Scheduled'), 'color' => 'blue'],
-            'sending' => ['label' => Craft::t('dispatch', 'Sending'), 'color' => 'orange'],
-            'sent' => ['label' => Craft::t('dispatch', 'Sent'), 'color' => 'green'],
-            'failed' => ['label' => Craft::t('dispatch', 'Failed'), 'color' => 'red'],
+            'draft' => ['label' => Craft::t('dispatch', 'Draft'), 'color' => Color::White],
+            'scheduled' => ['label' => Craft::t('dispatch', 'Scheduled'), 'color' => Color::Blue],
+            'sending' => ['label' => Craft::t('dispatch', 'Sending'), 'color' => Color::Orange],
+            'sent' => ['label' => Craft::t('dispatch', 'Sent'), 'color' => Color::Green],
+            'failed' => ['label' => Craft::t('dispatch', 'Failed'), 'color' => Color::Red],
         ];
     }
 
