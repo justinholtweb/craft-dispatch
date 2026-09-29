@@ -18,9 +18,9 @@ class TrackingController extends Controller
         $request = Craft::$app->getRequest();
         $campaignId = (int)$request->getQueryParam('cid');
         $subscriberId = (int)$request->getQueryParam('sid');
-        $token = $request->getQueryParam('token', '');
+        $token = TrackingHelper::requestToken();
 
-        if ($campaignId && $subscriberId && TrackingHelper::verifyToken($token, $campaignId, $subscriberId)) {
+        if ($campaignId && $subscriberId && TrackingHelper::verify($token, TrackingHelper::PURPOSE_OPEN, $campaignId, $subscriberId)) {
             try {
                 Plugin::getInstance()->tracker->recordOpen(
                     $campaignId,
@@ -53,14 +53,14 @@ class TrackingController extends Controller
         $campaignId = (int)$request->getQueryParam('cid');
         $subscriberId = (int)$request->getQueryParam('sid');
         $url = $request->getQueryParam('url', '');
-        $token = $request->getQueryParam('token', '');
+        $token = TrackingHelper::requestToken();
 
         $siteHome = Craft::$app->getSites()->getCurrentSite()->getBaseUrl();
 
         // The HMAC binds (campaignId, subscriberId, url). If verification fails,
         // the URL is attacker-controlled — never redirect to it (open redirect).
         if (!$url || !$campaignId || !$subscriberId
-            || !TrackingHelper::verifyClickToken($token, $campaignId, $subscriberId, $url)) {
+            || !TrackingHelper::verify($token, TrackingHelper::PURPOSE_CLICK, $campaignId, $subscriberId, $url)) {
             return $this->redirect($siteHome);
         }
 

@@ -62,7 +62,7 @@
             {{ csrfInput() }}
             <input type="hidden" name="action" value="dispatch/unsubscribe/update-preferences">
             <input type="hidden" name="sid" value="{{ subscriber.id }}">
-            <input type="hidden" name="token" value="{{ token }}">
+            <input type="hidden" name="dtoken" value="{{ token }}">
 
             {% for list in allLists %}
                 <div class="list-option">

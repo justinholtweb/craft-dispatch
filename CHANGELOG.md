@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Security
+
+- **Campaign content could read any secret on the site.** The body and subject were rendered as unrestricted Twig with the plugin settings in scope, so anyone who could edit a campaign could put `{{ craft.app.config.general.securityKey }}` in it and read it back through Preview. Campaign Twig now runs in Craft's sandbox: subscriber and campaign values, conditions, loops and filters work as before; everything else is refused, and Preview says what. Sites that need more can widen Craft's policy in `config/twig-sandbox.php`. Requires Craft 5.9.
+- **Bounce and complaint webhooks were unauthenticated.** The signature check was skipped unless a secret was set — never, by default — and checked a header no provider sends; anyone could post events that marked subscribers bounced or complained and suppress the list. Each provider is now verified with its own scheme (Mailgun HMAC, Postmark basic auth, SendGrid signed events, SES SNS signatures from the configured topic) and refused when its credential is not configured. Message IDs match exactly (a `%` used to match every row).
+- **Settings could be changed by non-admins, including on production.** Saving settings needed only *Manage settings*; it now needs an admin where admin changes are allowed, and only known settings are accepted.
+- **Tracking tokens are bound to their purpose.** An open-pixel token was also a valid unsubscribe token for a different pair of IDs, so a recipient could unsubscribe other people. The preferences page no longer lets a token holder join lists they have no connection to, and no longer redirects to the `Referer`.
+- **CSV import** accepts only CSV/text files up to 20 MB, stored under an unguessable name; the **subscriber export** neutralises cells that would run as spreadsheet formulas.
+
+### Fixes
+
+- **Unsubscribe, one-click unsubscribe, open tracking and every tracked link returned "400 Invalid token".** Their links carried a `token` parameter, which Craft 5.9+ reserves for its own preview tokens and rejects before any plugin code runs — so since Craft 5.9 recipients could not unsubscribe and every tracked link in a campaign was broken. Links now use `dtoken`, and links in mail already sent are rescued and keep working.
+- **The unsubscribe and preferences pages could not render** (template not found in site mode), and **RFC 8058 one-click unsubscribe failed CSRF validation**. Both fixed.
+- **Saving a draft campaign ran Duplicate.** The Send and Duplicate forms were nested inside the edit form; they are now form-submit buttons, and Send asks for confirmation.
+- **Saving one settings page erased the other page's settings.**
+- **SES bounce webhooks never started working:** Dispatch never confirmed the SNS subscription. It does now.
+- **The REST API answered a wrong key with 404**; it now returns 401.
+- Uninstalling removes Dispatch's campaigns, subscribers and lists from the elements table instead of leaving orphans.
+
+### Changed
+
+- **Transport settings removed.** The SES/Mailgun/Postmark/SendGrid keys on the Transport screen were never used — Dispatch always sent through Craft's mailer — but were stored in project config. Configure your provider in Settings → Email; a migration removes the stored keys. The screen is now **Delivery & Webhooks**.
+- The REST API has its own **API key** setting (it used the webhook secret); the existing secret is carried over. Webhook credentials and the API key accept environment variables — use them, since plugin settings are stored in project config.
+- New `preferencesUrl` variable in campaign templates.
+- Requires Craft CMS 5.9 or later.
+
 ## 5.0.5 - 2026-08-26
 
 ### Fixes

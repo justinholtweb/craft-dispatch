@@ -26,17 +26,18 @@ class ApiController extends Controller
 
         // Verify API authentication via Bearer token
         $authHeader = Craft::$app->getRequest()->getHeaders()->get('Authorization', '');
+        // A real 401 — returning false here used to surface as a 404, which told API clients
+        // their URL was wrong rather than their key.
         if (!str_starts_with($authHeader, 'Bearer ')) {
-            Craft::$app->getResponse()->setStatusCode(401);
-            return false;
+            throw new \yii\web\UnauthorizedHttpException('Bearer token required.');
         }
 
         $token = substr($authHeader, 7);
-        $settings = Plugin::getInstance()->getSettings();
+        // Its own env-able key (it used to share the webhook secret). Empty = API disabled.
+        $apiKey = Plugin::getInstance()->getSettings()->resolved('apiKey');
 
-        if (empty($settings->webhookSecret) || !hash_equals($settings->webhookSecret, $token)) {
-            Craft::$app->getResponse()->setStatusCode(401);
-            return false;
+        if ($apiKey === '' || !hash_equals($apiKey, $token)) {
+            throw new \yii\web\UnauthorizedHttpException('Invalid API key.');
         }
 
         return true;

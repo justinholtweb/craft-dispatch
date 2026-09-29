@@ -5,7 +5,6 @@ namespace justinholtweb\dispatch\services;
 use Craft;
 use craft\base\Component;
 use craft\helpers\Db;
-use craft\helpers\UrlHelper;
 use craft\mail\Message;
 use justinholtweb\dispatch\elements\Campaign;
 use justinholtweb\dispatch\elements\Subscriber;
@@ -22,16 +21,19 @@ class Sender extends Component
         $view = Craft::$app->getView();
         $settings = Plugin::getInstance()->getSettings();
 
-        // Build template context
+        // What editor-written Twig (the body and subject) may see. Deliberately not `settings`:
+        // that object carries the transport API keys and the webhook secret.
         $context = [
             'campaign' => $campaign,
             'subscriber' => $subscriber,
-            'settings' => $settings,
             'unsubscribeUrl' => $subscriber ? $this->_getUnsubscribeUrl($subscriber, $campaign) : '#',
+            'preferencesUrl' => $subscriber ? TrackingHelper::preferencesUrl((int)$subscriber->id) : '#',
         ];
 
-        // Render body content
-        $bodyHtml = $view->renderString($campaign->body ?? '', $context);
+        $bodyHtml = $this->renderEditorTwig($campaign->body ?? '', $context);
+
+        // The layout is a template file a developer wrote, so it keeps full Twig and the settings.
+        $context['settings'] = $settings;
 
         // Render within layout template
         $templatePath = $campaign->templatePath ?: $settings->defaultTemplateLayout;
@@ -73,12 +75,29 @@ class Sender extends Component
         return $html;
     }
 
+    /**
+     * Renders Twig that a campaign editor wrote — the body and the subject — in Craft's sandbox.
+     *
+     * Campaign editors are not necessarily admins, and unsandboxed Twig is the whole application:
+     * `{{ craft.app.config.general.securityKey }}` in a campaign, then Preview, printed the key.
+     * The sandbox allows what a newsletter needs (`{{ subscriber.firstName }}`, `{{ campaign.title }}`,
+     * `{{ unsubscribeUrl }}`, `if`/`for`, the usual filters) and refuses the rest. Sites that need
+     * more widen Craft's own policy in `config/twig-sandbox.php`.
+     *
+     * @param array<string, mixed> $context
+     * @throws \Twig\Sandbox\SecurityError when the Twig reaches for something the policy refuses.
+     */
+    public function renderEditorTwig(string $template, array $context): string
+    {
+        return Craft::$app->getView()->renderSandboxedString($template, $context);
+    }
+
     public function sendToSubscriber(Campaign $campaign, Subscriber $subscriber): bool
     {
         $settings = Plugin::getInstance()->getSettings();
 
         $html = $this->renderEmail($campaign, $subscriber);
-        $subject = Craft::$app->getView()->renderString($campaign->subject, [
+        $subject = $this->renderEditorTwig((string)$campaign->subject, [
             'subscriber' => $subscriber,
             'campaign' => $campaign,
         ]);
@@ -160,18 +179,10 @@ class Sender extends Component
 
     private function _getUnsubscribeUrl(Subscriber $subscriber, Campaign $campaign): string
     {
-        $settings = Plugin::getInstance()->getSettings();
-
-        $params = [
-            'sid' => $subscriber->id,
-            'lid' => $campaign->mailingListId,
-            'token' => TrackingHelper::generateToken($subscriber->id, $campaign->mailingListId ?? 0),
-        ];
-
-        if ($settings->unsubscribeUrl) {
-            return $settings->unsubscribeUrl . '?' . http_build_query($params);
-        }
-
-        return UrlHelper::siteUrl('dispatch/unsubscribe', $params);
+        return TrackingHelper::unsubscribeUrl(
+            (int)$subscriber->id,
+            (int)($campaign->mailingListId ?? 0),
+            Plugin::getInstance()->getSettings()->unsubscribeUrl ?: null,
+        );
     }
 }

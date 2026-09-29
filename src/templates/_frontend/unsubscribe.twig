@@ -71,7 +71,7 @@
                 <input type="hidden" name="action" value="dispatch/unsubscribe/confirm">
                 <input type="hidden" name="sid" value="{{ subscriber.id }}">
                 <input type="hidden" name="lid" value="{{ list ? list.id : 0 }}">
-                <input type="hidden" name="token" value="{{ token }}">
+                <input type="hidden" name="dtoken" value="{{ token }}">
                 <button type="submit" class="btn">Yes, unsubscribe me</button>
             </form>
         {% endif %}

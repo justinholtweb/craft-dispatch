@@ -17,6 +17,24 @@ class Install extends Migration
 
     public function safeDown(): bool
     {
+        // The element rows first: dropping only the plugin tables left campaigns, subscribers and
+        // lists in `elements` with a type that no longer exists, which breaks Craft's indexes and
+        // any relation field that pointed at them. Deleting them cascades to their site rows.
+        $ids = (new \craft\db\Query())
+            ->select('id')
+            ->from([\craft\db\Table::ELEMENTS])
+            ->where(['type' => [
+                \justinholtweb\dispatch\elements\Campaign::class,
+                \justinholtweb\dispatch\elements\Subscriber::class,
+                \justinholtweb\dispatch\elements\MailingList::class,
+            ]])
+            ->column();
+
+        foreach (array_chunk($ids, 500) as $chunk) {
+            $this->delete(\craft\db\Table::SEARCHINDEX, ['elementId' => $chunk]);
+            $this->delete(\craft\db\Table::ELEMENTS, ['id' => $chunk]);
+        }
+
         $this->dropTableIfExists('{{%dispatch_tracking}}');
         $this->dropTableIfExists('{{%dispatch_sendlog}}');
         $this->dropTableIfExists('{{%dispatch_subscriptions}}');

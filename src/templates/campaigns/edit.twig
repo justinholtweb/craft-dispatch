@@ -111,18 +111,16 @@
         <hr>
         <div class="buttons">
             <button type="button" class="btn" id="preview-btn">{{ 'Preview'|t('dispatch') }}</button>
-            <form method="post" style="display:inline">
-                {{ csrfInput() }}
-                <input type="hidden" name="action" value="dispatch/campaigns/send">
-                <input type="hidden" name="campaignId" value="{{ campaign.id }}">
-                <button type="submit" class="btn submit">{{ 'Send Campaign'|t('dispatch') }}</button>
-            </form>
-            <form method="post" style="display:inline">
-                {{ csrfInput() }}
-                <input type="hidden" name="action" value="dispatch/campaigns/duplicate">
-                <input type="hidden" name="campaignId" value="{{ campaign.id }}">
-                <button type="submit" class="btn">{{ 'Duplicate'|t('dispatch') }}</button>
-            </form>
+            {# Not nested <form>s: this page is already one form, a nested form's tags are dropped by
+               the parser, and its `action` input then overrode Save — saving a draft ran Duplicate.
+               Craft's formsubmit buttons post the page form to another action instead. #}
+            <button type="button" class="btn submit formsubmit"
+                data-action="dispatch/campaigns/send"
+                data-param="campaignId" data-value="{{ campaign.id }}"
+                data-confirm="{{ 'Send this campaign to its mailing list now? This can’t be undone.'|t('dispatch') }}">{{ 'Send Campaign'|t('dispatch') }}</button>
+            <button type="button" class="btn formsubmit"
+                data-action="dispatch/campaigns/duplicate"
+                data-param="campaignId" data-value="{{ campaign.id }}">{{ 'Duplicate'|t('dispatch') }}</button>
         </div>
     {% endif %}
 

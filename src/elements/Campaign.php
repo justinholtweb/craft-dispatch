@@ -7,8 +7,8 @@ use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
 use craft\elements\User;
-use craft\helpers\UrlHelper;
 use craft\enums\Color;
+use craft\helpers\UrlHelper;
 use justinholtweb\dispatch\elements\db\CampaignQuery;
 use justinholtweb\dispatch\enums\CampaignStatus;
 use justinholtweb\dispatch\records\CampaignRecord;
@@ -192,7 +192,7 @@ class Campaign extends Element
     {
         return match ($attribute) {
             'campaignStatus' => '<span class="status ' . CampaignStatus::from($this->campaignStatus)->color() . '"></span>' . CampaignStatus::from($this->campaignStatus)->label(),
-            'mailingListId' => $this->getMailingList()?->title ?? '—',
+            'mailingListId' => $this->getMailingList()->title ?? '—',
             default => parent::attributeHtml($attribute),
         };
     }
@@ -272,5 +272,24 @@ class Campaign extends Element
         }
 
         parent::afterDelete();
+    }
+
+    /**
+     * What campaign Twig — rendered in Craft's sandbox — may read from this element, besides its
+     * custom fields. Craft allows only custom fields by default, which would break
+     * `{{ subscriber.firstName }}` in every campaign; this list is the newsletter-safe rest.
+     */
+    private const SANDBOX_PROPERTIES = ['id', 'uid', 'title', 'subject', 'fromName', 'fromEmail', 'replyToEmail', 'sentAt', 'scheduledAt', 'mailingList', 'dateCreated'];
+
+    private const SANDBOX_METHODS = ['getMailingList'];
+
+    public function propertyAllowedInSandbox(string $property): bool
+    {
+        return in_array($property, self::SANDBOX_PROPERTIES, true) || parent::propertyAllowedInSandbox($property);
+    }
+
+    public function methodAllowedInSandbox(string $method): bool
+    {
+        return in_array($method, self::SANDBOX_METHODS, true) || parent::methodAllowedInSandbox($method);
     }
 }

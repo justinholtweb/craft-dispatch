@@ -19,36 +19,72 @@ class WebhookController extends Controller
         Edition::requiresPro('Webhook integrations');
 
         $request = Craft::$app->getRequest();
-        $settings = Plugin::getInstance()->getSettings();
+        $verifier = Plugin::getInstance()->webhookVerifier;
 
-        // Verify webhook secret
-        if ($settings->webhookSecret) {
-            $signature = $request->getHeaders()->get('X-Dispatch-Signature', '');
-            $payload = $request->getRawBody();
-            $expected = hash_hmac('sha256', $payload, $settings->webhookSecret);
-
-            if (!hash_equals($expected, $signature)) {
-                Craft::warning("Invalid webhook signature from provider: {$provider}", 'dispatch');
-                return $this->asJson(['error' => 'Invalid signature'])->setStatusCode(403);
-            }
+        if (!in_array($provider, ['ses', 'mailgun', 'postmark', 'sendgrid'], true)) {
+            return $this->asJson(['error' => 'Unknown provider'])->setStatusCode(404);
         }
 
-        $data = $request->getBodyParams();
+        if (!$verifier->verify($provider, $request)) {
+            Craft::warning("Dispatch refused a {$provider} webhook: {$verifier->lastError}", 'dispatch');
+
+            return $this->asJson(['error' => 'Unauthorized'])->setStatusCode(403);
+        }
+
+        // Parsed from the raw body: SNS posts JSON as text/plain, which Craft's body parser skips.
+        $data = json_decode($request->getRawBody(), true);
+        $data = is_array($data) ? $data : [];
 
         $result = match ($provider) {
             'ses' => $this->_handleSes($data),
             'mailgun' => $this->_handleMailgun($data),
             'postmark' => $this->_handlePostmark($data),
             'sendgrid' => $this->_handleSendgrid($data),
-            default => ['processed' => 0, 'error' => "Unknown provider: {$provider}"],
         };
 
         return $this->asJson($result);
     }
 
+    /**
+     * The send log row for a provider's message ID — exact match only, with and without the
+     * angle brackets a Message-ID header carries. (A LIKE here let `%` match every row.)
+     */
+    private function _findLog(string $messageId): ?SendLogRecord
+    {
+        $id = trim($messageId, " <>");
+
+        if ($id === '') {
+            return null;
+        }
+
+        /** @var SendLogRecord|null $record */
+        $record = SendLogRecord::find()->where(['messageId' => [$id, "<{$id}>"]])->one();
+
+        return $record;
+    }
+
     private function _handleSes(array $data): array
     {
         $processed = 0;
+
+        // SNS won't deliver notifications until the subscription is confirmed. The message is
+        // already verified as signed by Amazon for our topic; the URL is checked again anyway.
+        if (($data['Type'] ?? '') === 'SubscriptionConfirmation') {
+            $url = (string)($data['SubscribeURL'] ?? '');
+
+            if (\justinholtweb\dispatch\services\WebhookVerifier::isAwsSnsUrl($url)) {
+                try {
+                    Craft::createGuzzleClient(['timeout' => 5, 'allow_redirects' => false])->get($url);
+
+                    return ['processed' => 0, 'subscribed' => true];
+                } catch (\Throwable $e) {
+                    Craft::warning('Dispatch: SNS subscription confirmation failed: ' . $e->getMessage(), 'dispatch');
+                }
+            }
+
+            return ['processed' => 0, 'subscribed' => false];
+        }
+
         $message = $data['Message'] ?? null;
 
         if (is_string($message)) {
@@ -66,8 +102,7 @@ class WebhookController extends Controller
             return ['processed' => 0];
         }
 
-        /** @var SendLogRecord|null $logRecord */
-        $logRecord = SendLogRecord::find()->where(['messageId' => $messageId])->one();
+        $logRecord = $this->_findLog((string)$messageId);
         if (!$logRecord) {
             return ['processed' => 0];
         }
@@ -101,8 +136,7 @@ class WebhookController extends Controller
             return ['processed' => 0];
         }
 
-        /** @var SendLogRecord|null $logRecord */
-        $logRecord = SendLogRecord::find()->where(['messageId' => $messageId])->one();
+        $logRecord = $this->_findLog((string)$messageId);
         if (!$logRecord) {
             return ['processed' => 0];
         }
@@ -135,8 +169,7 @@ class WebhookController extends Controller
             return ['processed' => 0];
         }
 
-        /** @var SendLogRecord|null $logRecord */
-        $logRecord = SendLogRecord::find()->where(['messageId' => $messageId])->one();
+        $logRecord = $this->_findLog((string)$messageId);
         if (!$logRecord) {
             return ['processed' => 0];
         }
@@ -163,21 +196,21 @@ class WebhookController extends Controller
     {
         $processed = 0;
 
-        $events = is_array($data) && isset($data[0]) ? $data : [$data];
+        $events = array_is_list($data) ? $data : [$data];
 
         foreach ($events as $event) {
-            $eventType = $event['event'] ?? '';
-            $messageId = $event['sg_message_id'] ?? '';
-
-            if (!$messageId) {
+            if (!is_array($event)) {
                 continue;
             }
 
-            // SendGrid message IDs have a filter suffix
-            $messageId = explode('.', $messageId)[0];
+            $eventType = $event['event'] ?? '';
+            $messageId = $event['sg_message_id'] ?? '';
 
-            /** @var SendLogRecord|null $logRecord */
-            $logRecord = SendLogRecord::find()->where(['like', 'messageId', $messageId])->one();
+            // `smtp-id` is the Message-ID we sent with; sg_message_id is SendGrid's own ID, whose
+            // first segment is what some integrations store.
+            $logRecord = $this->_findLog((string)($event['smtp-id'] ?? ''))
+                ?? ($messageId !== '' ? $this->_findLog(explode('.', (string)$messageId)[0]) : null);
+
             if (!$logRecord) {
                 continue;
             }

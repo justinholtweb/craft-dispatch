@@ -1,104 +1,96 @@
 {% extends 'dispatch/_layouts/plugin' %}
 {% import '_includes/forms' as forms %}
 
-{% set title = 'Transport Settings'|t('dispatch') %}
+{% set title = 'Delivery & Webhooks'|t('dispatch') %}
 {% set selectedSubnavItem = 'settings' %}
 {% set fullPageForm = true %}
 
 {% block pluginContent %}
-    <input type="hidden" name="action" value="dispatch/campaigns/save-settings">
+    {{ actionInput('dispatch/campaigns/save-settings') }}
     {{ redirectInput('dispatch/settings/transport') }}
 
     <div id="fields">
-        <h2>{{ 'Email Transport'|t('dispatch') }}</h2>
+        <h2>{{ 'Sending'|t('dispatch') }}</h2>
 
-        {{ forms.selectField({
-            label: 'Transport Type'|t('dispatch'),
-            instructions: 'Choose how emails are sent. "Craft Mailer" uses your existing Craft email configuration.'|t('dispatch'),
-            id: 'transportType',
-            name: 'settings[transportType]',
-            value: settings.transportType,
-            options: [
-                { label: 'Craft Mailer (Default)'|t('dispatch'), value: 'craft' },
-                { label: 'Amazon SES', value: 'ses' },
-                { label: 'Mailgun', value: 'mailgun' },
-                { label: 'Postmark', value: 'postmark' },
-                { label: 'SendGrid', value: 'sendgrid' },
-            ],
+        <p>
+            {{ 'Dispatch sends through Craft’s own email settings. Choose your provider — Amazon SES, Mailgun, Postmark, SendGrid or SMTP — and its API key under {link}, where the key can come from an environment variable.'|t('dispatch', {
+                link: tag('a', { href: cpUrl('settings/email'), text: 'Settings → Email'|t('dispatch') }),
+            })|raw }}
+        </p>
+
+        <hr>
+
+        <h2>{{ 'Bounce & complaint webhooks'|t('dispatch') }}</h2>
+
+        <p class="light">
+            {{ 'Point your provider’s bounce and complaint webhook at the URL below. A provider’s webhook is refused until its credential is set here. Use environment variables (e.g. $MAILGUN_WEBHOOK_KEY) — these settings are stored in project config.'|t('dispatch') }}
+        </p>
+
+        
+        {{ forms.autosuggestField({
+            label: 'Mailgun webhook signing key'|t('dispatch'),
+            instructions: ('Mailgun → Sending → Webhooks → HTTP webhook signing key. Webhook URL: `' ~ siteUrl('dispatch/webhook/mailgun') ~ '`')|t('dispatch'),
+            id: 'mailgunWebhookSigningKey',
+            name: 'settings[mailgunWebhookSigningKey]',
+            value: settings.mailgunWebhookSigningKey,
+            suggestEnvVars: true,
         }) }}
 
-        <div id="transport-settings">
-            <div class="transport-config" data-transport="ses" {% if settings.transportType != 'ses' %}style="display:none"{% endif %}>
-                <h3>Amazon SES</h3>
-                {{ forms.textField({
-                    label: 'AWS Region',
-                    name: 'settings[transportSettings][ses][region]',
-                    value: settings.transportSettings.ses.region ?? 'us-east-1',
-                }) }}
-                {{ forms.textField({
-                    label: 'AWS Access Key ID',
-                    name: 'settings[transportSettings][ses][accessKeyId]',
-                    value: settings.transportSettings.ses.accessKeyId ?? '',
-                }) }}
-                {{ forms.passwordField({
-                    label: 'AWS Secret Access Key',
-                    name: 'settings[transportSettings][ses][secretAccessKey]',
-                    value: settings.transportSettings.ses.secretAccessKey ?? '',
+        {% set postmarkUrl = siteUrl('dispatch/webhook/postmark') %}
+        <p class="light">{{ 'Postmark sends these as basic auth when they are in the webhook URL:'|t('dispatch') }}
+            <code>{{ postmarkUrl|replace('://', '://USER:PASS@') }}</code></p>
+        <div class="flex">
+            <div class="flex-grow">
+                {{ forms.autosuggestField({
+                    label: 'Postmark webhook username'|t('dispatch'),
+                    id: 'postmarkWebhookUsername',
+                    name: 'settings[postmarkWebhookUsername]',
+                    value: settings.postmarkWebhookUsername,
+                    suggestEnvVars: true,
                 }) }}
             </div>
-
-            <div class="transport-config" data-transport="mailgun" {% if settings.transportType != 'mailgun' %}style="display:none"{% endif %}>
-                <h3>Mailgun</h3>
-                {{ forms.textField({
-                    label: 'Domain',
-                    name: 'settings[transportSettings][mailgun][domain]',
-                    value: settings.transportSettings.mailgun.domain ?? '',
-                }) }}
-                {{ forms.passwordField({
-                    label: 'API Key',
-                    name: 'settings[transportSettings][mailgun][apiKey]',
-                    value: settings.transportSettings.mailgun.apiKey ?? '',
-                }) }}
-                {{ forms.selectField({
-                    label: 'Region',
-                    name: 'settings[transportSettings][mailgun][region]',
-                    value: settings.transportSettings.mailgun.region ?? 'us',
-                    options: [
-                        { label: 'US', value: 'us' },
-                        { label: 'EU', value: 'eu' },
-                    ],
-                }) }}
-            </div>
-
-            <div class="transport-config" data-transport="postmark" {% if settings.transportType != 'postmark' %}style="display:none"{% endif %}>
-                <h3>Postmark</h3>
-                {{ forms.passwordField({
-                    label: 'Server Token',
-                    name: 'settings[transportSettings][postmark][serverToken]',
-                    value: settings.transportSettings.postmark.serverToken ?? '',
-                }) }}
-            </div>
-
-            <div class="transport-config" data-transport="sendgrid" {% if settings.transportType != 'sendgrid' %}style="display:none"{% endif %}>
-                <h3>SendGrid</h3>
-                {{ forms.passwordField({
-                    label: 'API Key',
-                    name: 'settings[transportSettings][sendgrid][apiKey]',
-                    value: settings.transportSettings.sendgrid.apiKey ?? '',
+            <div class="flex-grow">
+                {{ forms.autosuggestField({
+                    label: 'Postmark webhook password'|t('dispatch'),
+                    id: 'postmarkWebhookPassword',
+                    name: 'settings[postmarkWebhookPassword]',
+                    value: settings.postmarkWebhookPassword,
+                    suggestEnvVars: true,
                 }) }}
             </div>
         </div>
+
+        {{ forms.autosuggestField({
+            label: 'SendGrid verification key'|t('dispatch'),
+            instructions: ('SendGrid → Mail Settings → Signed Event Webhook → Verification Key (enable signing). Webhook URL: `' ~ siteUrl('dispatch/webhook/sendgrid') ~ '`')|t('dispatch'),
+            id: 'sendgridWebhookPublicKey',
+            name: 'settings[sendgridWebhookPublicKey]',
+            value: settings.sendgridWebhookPublicKey,
+            suggestEnvVars: true,
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'Amazon SES topic ARN'|t('dispatch'),
+            instructions: ('The SNS topic SES publishes bounces and complaints to. Subscribe `' ~ siteUrl('dispatch/webhook/ses') ~ '` to it over HTTPS; Dispatch confirms the subscription.')|t('dispatch'),
+            id: 'sesTopicArn',
+            name: 'settings[sesTopicArn]',
+            value: settings.sesTopicArn,
+            suggestEnvVars: true,
+        }) }}
+
+        {% if craft.app.plugins.getPlugin('dispatch').is('pro') %}
+            <hr>
+
+            <h2>{{ 'REST API'|t('dispatch') }}</h2>
+
+            {{ forms.autosuggestField({
+                label: 'API key'|t('dispatch'),
+                instructions: 'Clients send it as `Authorization: Bearer <key>`. Leave empty to turn the API off.'|t('dispatch'),
+                id: 'apiKey',
+                name: 'settings[apiKey]',
+                value: settings.apiKey,
+                suggestEnvVars: true,
+            }) }}
+        {% endif %}
     </div>
 {% endblock %}
-
-{% js %}
-    (function() {
-        var select = document.getElementById('transportType');
-        var configs = document.querySelectorAll('.transport-config');
-        select.addEventListener('change', function() {
-            configs.forEach(function(el) {
-                el.style.display = el.dataset.transport === select.value ? '' : 'none';
-            });
-        });
-    })();
-{% endjs %}

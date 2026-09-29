@@ -7,9 +7,9 @@ use craft\base\Element;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Restore;
 use craft\elements\User;
+use craft\enums\Color;
 use craft\helpers\Db;
 use craft\helpers\UrlHelper;
-use craft\enums\Color;
 use justinholtweb\dispatch\elements\db\SubscriberQuery;
 use justinholtweb\dispatch\enums\SubscriberStatus;
 use justinholtweb\dispatch\records\SubscriberRecord;
@@ -254,5 +254,24 @@ class Subscriber extends Element
         }
 
         parent::afterDelete();
+    }
+
+    /**
+     * What campaign Twig — rendered in Craft's sandbox — may read from this element, besides its
+     * custom fields. Craft allows only custom fields by default, which would break
+     * `{{ subscriber.firstName }}` in every campaign; this list is the newsletter-safe rest.
+     */
+    private const SANDBOX_PROPERTIES = ['id', 'uid', 'title', 'email', 'firstName', 'lastName', 'fullName', 'status', 'subscribedAt', 'dateCreated'];
+
+    private const SANDBOX_METHODS = ['getFullName'];
+
+    public function propertyAllowedInSandbox(string $property): bool
+    {
+        return in_array($property, self::SANDBOX_PROPERTIES, true) || parent::propertyAllowedInSandbox($property);
+    }
+
+    public function methodAllowedInSandbox(string $method): bool
+    {
+        return in_array($method, self::SANDBOX_METHODS, true) || parent::methodAllowedInSandbox($method);
     }
 }

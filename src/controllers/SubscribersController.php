@@ -125,13 +125,19 @@ class SubscribersController extends Controller
         $mailingListId = Craft::$app->getRequest()->getRequiredBodyParam('mailingListId');
         $file = UploadedFile::getInstanceByName('csvFile');
 
-        if (!$file) {
-            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Please upload a CSV file.'));
+        // A CSV, not whatever was uploaded: right extension, plain text, a sane size.
+        $isText = $file && !$file->getHasError()
+            && in_array(strtolower($file->getExtension()), ['csv', 'txt'], true)
+            && $file->size > 0 && $file->size <= 20 * 1024 * 1024
+            && str_starts_with((string)(new \finfo(FILEINFO_MIME_TYPE))->file($file->tempName), 'text/');
+
+        if (!$isText) {
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Please upload a CSV file (up to 20 MB).'));
             return $this->redirect('dispatch/subscribers/import');
         }
 
-        // Save to temp
-        $tempPath = Craft::$app->getPath()->getTempPath() . '/dispatch-import-' . uniqid() . '.csv';
+        // Unguessable name: uniqid() is a timestamp.
+        $tempPath = Craft::$app->getPath()->getTempPath() . '/dispatch-import-' . bin2hex(random_bytes(16)) . '.csv';
         $file->saveAs($tempPath);
 
         // Push to queue

@@ -15,6 +15,7 @@ use craft\web\UrlManager;
 use justinholtweb\dispatch\elements\Campaign;
 use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
+use justinholtweb\dispatch\helpers\TrackingHelper;
 use justinholtweb\dispatch\models\Settings;
 use justinholtweb\dispatch\services\Campaigns;
 use justinholtweb\dispatch\services\Lists;
@@ -33,6 +34,7 @@ use yii\base\Event;
  * @property Sender $sender
  * @property Tracker $tracker
  * @property Transports $transports
+ * @property \justinholtweb\dispatch\services\WebhookVerifier $webhookVerifier
  * @property Settings $settings
  * @method Settings getSettings()
  */
@@ -42,7 +44,7 @@ class Plugin extends BasePlugin
     public const EDITION_LITE = 'lite';
     public const EDITION_PRO = 'pro';
 
-    public string $schemaVersion = '1.0.0';
+    public string $schemaVersion = '1.1.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
@@ -56,6 +58,7 @@ class Plugin extends BasePlugin
                 'sender' => Sender::class,
                 'tracker' => Tracker::class,
                 'transports' => Transports::class,
+                'webhookVerifier' => \justinholtweb\dispatch\services\WebhookVerifier::class,
             ],
         ];
     }
@@ -72,6 +75,10 @@ class Plugin extends BasePlugin
     public function init(): void
     {
         parent::init();
+
+        // Before anything else: Craft rejects an unknown `?token=` with "400 Invalid token" as
+        // soon as plugins have loaded, and every link Dispatch sent before 5.1 carries one.
+        TrackingHelper::translateLegacyTokenParam();
 
         Craft::$app->onInit(function() {
             $this->_registerElementTypes();

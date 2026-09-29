@@ -59,14 +59,14 @@ if ($this->is(self::EDITION_LITE)) { ... }
 ### Email Pipeline
 1. `Campaigns::send()` pushes a `SendCampaignJob` to the queue
 2. Job fetches subscribers in batches (configurable, default 50)
-3. Per subscriber: Twig render → CSS inline → inject tracking pixel → rewrite links → send via mailer → log to `dispatch_sendlog`
+3. Per subscriber: sandboxed Twig render (`Sender::renderEditorTwig()`) → CSS inline → inject tracking pixel → rewrite links → send via mailer → log to `dispatch_sendlog`
 4. Campaign status updates as it progresses: draft → sending → sent/failed
 
 ### Tracking
 - Open tracking: 1×1 transparent GIF served by `TrackingController::actionOpen()`
 - Click tracking: redirect through `TrackingController::actionClick()` with 302
-- All tracking URLs are HMAC-signed using Craft's `securityKey`
-- Webhook controller handles SES/Mailgun/Postmark/SendGrid bounce/complaint callbacks
+- All tracking URLs are HMAC-signed using Craft's `securityKey`, **bound to a purpose** (`open`, `click`, `unsub`, `prefs`) and sent as **`dtoken`** — see `TrackingHelper`
+- Webhook controller handles SES/Mailgun/Postmark/SendGrid bounce/complaint callbacks, each verified by `WebhookVerifier` with the provider's own scheme (fails closed when unconfigured)
 
 ### Unsubscribe
 RFC 8058 compliant: `List-Unsubscribe` + `List-Unsubscribe-Post` headers on every email. One-click POST unsubscribe supported. Public preference center at `/dispatch/preferences`.
@@ -122,7 +122,14 @@ All tables created in `migrations/Install.php`. Element tables have cascading de
 
 ## Testing
 
-Tests live in `tests/unit/` and `tests/functional/`. The project uses Codeception. No tests are written yet — this is a priority area for contribution.
+Integration checks run inside the shared plugin-testing harness:
+
+```sh
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/checks.php  # services
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/http.php    # links, webhooks, CP (needs Pro)
+```
+
+**Never run the Codeception suite (`tests/unit`, `codecept`) in the harness container.** With no `tests/.env` its database setup falls back to the harness DB and drops every table (it wiped the harness on 2026-09-28).
 
 ## Code Style
 
@@ -137,5 +144,10 @@ Tests live in `tests/unit/` and `tests/functional/`. The project uses Codeceptio
 - **Never rename Plugin.php or change its class/namespace** after publishing. Craft stores the FQCN in config.
 - **Edition changes must not lose data.** A site can downgrade at any time via project config. Gated features should degrade gracefully, not delete anything.
 - **Element queries use `joinElementTable()`** — the table name passed must match the unprefixed table name without `{{%}}` wrapping.
-- **Tracking tokens use HMAC** — always verify with `TrackingHelper::verifyToken()` before acting on tracking/unsubscribe requests.
+- **Never put a `token` query parameter on a URL.** It is Craft's preview-token parameter; since Craft 5.9 an unrecognised one is rejected with "400 Invalid token" before any controller runs. That silently broke every unsubscribe, one-click, pixel and tracked link until 5.1. Use `dtoken` (`TrackingHelper::PARAM`). `TrackingHelper::translateLegacyTokenParam()` rescues links already sent.
+- **Tracking tokens are purpose-bound HMACs** — verify with `TrackingHelper::verify($token, PURPOSE_…, …ids)`. Legacy (pre-5.1) tokens are accepted for open/click/unsubscribe only, never preferences.
+- **Campaign body and subject are editor-written Twig** — render them only through `Sender::renderEditorTwig()` (Craft's sandbox). Never add `settings` or other secrets to that context. Element fields a campaign may read are allowlisted per element (`SANDBOX_PROPERTIES`).
+- **Front-end controller templates render in CP mode** (`View::TEMPLATE_MODE_CP`) — plugin templates don't resolve in site mode.
+- **The campaign edit page is one form** — no nested `<form>`s; secondary actions are `formsubmit` buttons.
+- **Settings saves merge over current settings and whitelist `Settings::EDITABLE`** — `savePluginSettings()` writes only the keys it is given. Secrets are env-able (`Settings::resolved()`).
 - **The Sender service references SwiftMailer** (`getSwiftMessage()`) — this may need updating if Craft migrates to Symfony Mailer. Check for deprecation warnings.

@@ -9,46 +9,63 @@ class TrackingHelperTest extends Unit
 {
     public function testTokenRoundTrips(): void
     {
-        $token = TrackingHelper::generateToken(1, 2);
+        $token = TrackingHelper::sign(TrackingHelper::PURPOSE_UNSUBSCRIBE, 1, 2);
 
-        self::assertTrue(TrackingHelper::verifyToken($token, 1, 2));
+        self::assertTrue(TrackingHelper::verify($token, TrackingHelper::PURPOSE_UNSUBSCRIBE, 1, 2));
     }
 
     public function testTokenIsDeterministic(): void
     {
         self::assertSame(
-            TrackingHelper::generateToken(5, 9),
-            TrackingHelper::generateToken(5, 9),
+            TrackingHelper::sign(TrackingHelper::PURPOSE_OPEN, 5, 9),
+            TrackingHelper::sign(TrackingHelper::PURPOSE_OPEN, 5, 9),
         );
     }
 
-    public function testVerifyTokenRejectsTamperedToken(): void
+    public function testVerifyRejectsTamperedToken(): void
     {
-        $token = TrackingHelper::generateToken(1, 2);
+        $token = TrackingHelper::sign(TrackingHelper::PURPOSE_OPEN, 1, 2);
 
-        self::assertFalse(TrackingHelper::verifyToken($token . 'x', 1, 2));
+        self::assertFalse(TrackingHelper::verify($token . 'x', TrackingHelper::PURPOSE_OPEN, 1, 2));
     }
 
-    public function testVerifyTokenRejectsDifferentParts(): void
+    public function testVerifyRejectsDifferentParts(): void
     {
-        $token = TrackingHelper::generateToken(1, 2);
+        $token = TrackingHelper::sign(TrackingHelper::PURPOSE_OPEN, 1, 2);
 
-        self::assertFalse(TrackingHelper::verifyToken($token, 1, 3));
+        self::assertFalse(TrackingHelper::verify($token, TrackingHelper::PURPOSE_OPEN, 1, 3));
+    }
+
+    public function testTokenIsBoundToItsPurpose(): void
+    {
+        // An open-pixel token for campaign 7 / subscriber 3 must not unsubscribe subscriber 7
+        // from list 3 — the pre-5.1 tokens shared one scheme and it did.
+        $pixel = TrackingHelper::sign(TrackingHelper::PURPOSE_OPEN, 7, 3);
+
+        self::assertFalse(TrackingHelper::verify($pixel, TrackingHelper::PURPOSE_UNSUBSCRIBE, 7, 3));
     }
 
     public function testClickTokenRoundTrips(): void
     {
         $url = 'https://example.com/page';
-        $token = TrackingHelper::generateClickToken(1, 2, $url);
+        $token = TrackingHelper::sign(TrackingHelper::PURPOSE_CLICK, 1, 2, $url);
 
-        self::assertTrue(TrackingHelper::verifyClickToken($token, 1, 2, $url));
+        self::assertTrue(TrackingHelper::verify($token, TrackingHelper::PURPOSE_CLICK, 1, 2, $url));
     }
 
     public function testClickTokenRejectsDifferentUrl(): void
     {
-        $token = TrackingHelper::generateClickToken(1, 2, 'https://example.com/a');
+        $token = TrackingHelper::sign(TrackingHelper::PURPOSE_CLICK, 1, 2, 'https://example.com/a');
 
-        self::assertFalse(TrackingHelper::verifyClickToken($token, 1, 2, 'https://example.com/b'));
+        self::assertFalse(TrackingHelper::verify($token, TrackingHelper::PURPOSE_CLICK, 1, 2, 'https://example.com/b'));
+    }
+
+    public function testLinksUseDtokenNotCraftsTokenParam(): void
+    {
+        $html = TrackingHelper::injectTrackingPixel(TrackingHelper::rewriteLinks('<a href="https://example.com/">x</a>', 1, 2), 1, 2);
+
+        self::assertStringContainsString('dtoken=', $html);
+        self::assertDoesNotMatchRegularExpression('/[?&;]token=/', $html);
     }
 
     public function testInjectTrackingPixelInsertsBeforeBody(): void

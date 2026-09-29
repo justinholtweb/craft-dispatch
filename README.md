@@ -16,7 +16,6 @@ Lightweight email marketing and newsletter plugin for Craft CMS 5. Manage subscr
 | Craft User sync | — | ✓ | ✓ |
 | Open/click analytics | — | ✓ | ✓ |
 | Delivery dashboard | — | ✓ | ✓ |
-| Custom transports (SES, Mailgun, etc.) | — | ✓ | ✓ |
 | Drip sequences / automation | — | — | ✓ |
 | A/B subject line testing | — | — | ✓ |
 | Dynamic segments | — | — | ✓ |
@@ -25,7 +24,7 @@ Lightweight email marketing and newsletter plugin for Craft CMS 5. Manage subscr
 
 ## Requirements
 
-- Craft CMS 5.0+
+- Craft CMS 5.9+
 - PHP 8.2+
 
 ## Installation
@@ -115,9 +114,9 @@ Every email includes `List-Unsubscribe` and `List-Unsubscribe-Post` headers per 
 
 When enabled, Dispatch injects a 1×1 tracking pixel for opens and rewrites links for click tracking. All tracking URLs are HMAC-signed to prevent spoofing. View results on the **Dashboard** tab.
 
-## Custom Transports (Lite+)
+## Sending
 
-Configure sending via Amazon SES, Mailgun, Postmark, or SendGrid under **Settings → Transport**. The default `craft` transport uses your existing Craft email configuration.
+Dispatch sends through Craft's mailer. Choose your provider — Amazon SES, Mailgun, Postmark, SendGrid or SMTP — under Craft's **Settings → Email**, where the API key can come from an environment variable.
 
 ## Webhooks (Pro)
 
@@ -130,11 +129,20 @@ POST /dispatch/webhook/postmark
 POST /dispatch/webhook/sendgrid
 ```
 
-Set a `webhookSecret` in your settings for HMAC signature verification.
+Each provider is verified with its own scheme, and its webhook is refused until the credential is set under **Dispatch → Settings → Delivery & Webhooks**:
+
+| Provider | Credential |
+|---|---|
+| Mailgun | Webhook signing key (HMAC-SHA256, stale and replayed requests refused) |
+| Postmark | Basic-auth username and password, put in the webhook URL (`https://USER:PASS@…`) |
+| SendGrid | Signed Event Webhook verification key |
+| Amazon SES | The SNS topic ARN — subscribe the URL to the topic; Dispatch confirms the subscription |
+
+All of these accept environment variables (`$MAILGUN_WEBHOOK_KEY`); use them, since plugin settings are stored in project config.
 
 ## REST API (Pro)
 
-Authenticate with a Bearer token (using your `webhookSecret`):
+Authenticate with a Bearer token — the **API key** under Delivery & Webhooks (env-able; empty turns the API off):
 
 ```bash
 # List subscribers

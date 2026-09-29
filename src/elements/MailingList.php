@@ -208,4 +208,16 @@ class MailingList extends Element
             ->update('{{%dispatch_mailinglists}}', ['subscriberCount' => $count], ['id' => $this->id])
             ->execute();
     }
+
+    /**
+     * What campaign Twig — rendered in Craft's sandbox — may read from this element, besides its
+     * custom fields. Craft allows only custom fields by default, which would break
+     * `{{ subscriber.firstName }}` in every campaign; this list is the newsletter-safe rest.
+     */
+    private const SANDBOX_PROPERTIES = ['id', 'uid', 'title', 'name', 'handle', 'description'];
+
+    public function propertyAllowedInSandbox(string $property): bool
+    {
+        return in_array($property, self::SANDBOX_PROPERTIES, true) || parent::propertyAllowedInSandbox($property);
+    }
 }

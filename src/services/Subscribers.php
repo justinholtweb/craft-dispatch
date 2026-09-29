@@ -204,14 +204,18 @@ class Subscribers extends Component
         $output = fopen('php://temp', 'r+');
         fputcsv($output, ['email', 'firstName', 'lastName', 'status', 'subscribedAt']);
 
+        // Names come from the public signup form. A cell starting with = + - @ runs as a formula
+        // when the export is opened in a spreadsheet, so those are prefixed with a quote.
+        $cell = static fn($v) => is_string($v) && preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v;
+
         foreach ($subscribers as $subscriber) {
-            fputcsv($output, [
+            fputcsv($output, array_map($cell, [
                 $subscriber->email,
                 $subscriber->firstName,
                 $subscriber->lastName,
                 $subscriber->status,
                 $subscriber->subscribedAt,
-            ]);
+            ]));
         }
 
         rewind($output);
