@@ -2,8 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
-
+## 5.3.0 - 2026-10-09
 ### Added
 
 - **Sign-up forms with double opt-in.** `{{ craft.dispatch.signupForm('newsletter') }}` puts a sign-up form in any template, with options for list choice, name fields, a consent checkbox (enforced on the server), a source label and a redirect. A new address is emailed a confirmation link. Opening it shows a Confirm button, so a mail scanner opening the link confirms nobody, and pressing it makes the person a subscriber. Until then nothing is subscribed, sequenced or sent to a webhook. Links are single-use, stored only as a SHA-256 hash, and expire after 48 hours. Unconfirmed sign-ups are deleted. Hand-built forms post to `dispatch/signup/subscribe` with a signed configuration (`craft.dispatch.signupConfig()`), so a visitor can't add an address to a list the template didn't offer.
