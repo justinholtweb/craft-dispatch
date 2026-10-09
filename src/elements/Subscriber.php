@@ -81,6 +81,15 @@ class Subscriber extends Element
         return new SubscriberQuery(static::class);
     }
 
+    /**
+     * The condition behind dynamic segments and the index filters: lists, signup date, email,
+     * engagement, plus a rule for every custom field in the subscriber field layout.
+     */
+    public static function createCondition(): \craft\elements\conditions\ElementConditionInterface
+    {
+        return Craft::createObject(\justinholtweb\dispatch\elements\conditions\SubscriberCondition::class, [static::class]);
+    }
+
     public static function defineSources(?string $context = null): array
     {
         $sources = [
@@ -163,6 +172,12 @@ class Subscriber extends Element
             Delete::class,
             Restore::class,
         ];
+    }
+
+    /** The one subscriber field layout (Settings → Subscriber Fields), as Craft's users have. */
+    public function getFieldLayout(): ?\craft\models\FieldLayout
+    {
+        return Craft::$app->getFields()->getLayoutByType(self::class);
     }
 
     public function getUiLabel(): string

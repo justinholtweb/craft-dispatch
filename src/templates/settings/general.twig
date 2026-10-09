@@ -5,6 +5,10 @@
 {% set selectedSubnavItem = 'settings' %}
 {% set fullPageForm = true %}
 
+{% block sidebar %}
+    {% include 'dispatch/settings/_nav' with { settingsPage: 'general' } %}
+{% endblock %}
+
 {% block pluginContent %}
     <input type="hidden" name="action" value="dispatch/campaigns/save-settings">
     {{ redirectInput('dispatch/settings') }}

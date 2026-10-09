@@ -8,10 +8,22 @@ use craft\elements\User;
 use craft\helpers\Db;
 use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
+use justinholtweb\dispatch\events\SubscriberEvent;
 use justinholtweb\dispatch\records\SubscriptionRecord;
 
 class Subscribers extends Component
 {
+    /**
+     * @event SubscriberEvent After a subscriber joins a list (a new subscription only). Starts
+     * list-triggered drip sequences and the `subscriber.subscribed` outgoing webhook.
+     */
+    public const EVENT_AFTER_SUBSCRIBE = 'afterSubscribe';
+
+    /**
+     * @event SubscriberEvent After a subscriber leaves a list, or every list (`mailingList` null).
+     */
+    public const EVENT_AFTER_UNSUBSCRIBE = 'afterUnsubscribe';
+
     public function getById(int $id): ?Subscriber
     {
         return Subscriber::find()->id($id)->one();
@@ -19,7 +31,9 @@ class Subscribers extends Component
 
     public function getByEmail(string $email): ?Subscriber
     {
-        return Subscriber::find()->email($email)->one();
+        // Exact match. The `email` query param goes through Db::parseParam, where `*` is a
+        // wildcard — so `getByEmail('*')` (an API unsubscribe, say) matched somebody.
+        return Subscriber::find()->status(null)->andWhere(['dispatch_subscribers.email' => trim($email)])->one();
     }
 
     public function create(Subscriber $subscriber): bool
@@ -63,13 +77,41 @@ class Subscribers extends Component
             if ($list) {
                 $list->refreshSubscriberCount();
             }
+
+            if ($this->hasEventHandlers(self::EVENT_AFTER_SUBSCRIBE)) {
+                $this->trigger(self::EVENT_AFTER_SUBSCRIBE, new SubscriberEvent([
+                    'subscriber' => $this->getById($subscriberId),
+                    'mailingList' => $list,
+                ]));
+            }
         }
 
         return $result;
     }
 
+    /**
+     * Removes one list subscription without touching the subscriber's status (the preferences
+     * page and the CP use this; `unsubscribe()` also marks the subscriber unsubscribed).
+     */
+    public function removeFromList(int $subscriberId, int $mailingListId): bool
+    {
+        $removed = SubscriptionRecord::deleteAll(['subscriberId' => $subscriberId, 'mailingListId' => $mailingListId]);
+
+        if (!$removed) {
+            return false;
+        }
+
+        $list = MailingList::find()->id($mailingListId)->one();
+        $list?->refreshSubscriberCount();
+        $this->_afterUnsubscribe($subscriberId, $list);
+
+        return true;
+    }
+
     public function unsubscribe(int $subscriberId, ?int $mailingListId = null): bool
     {
+        $list = null;
+
         if ($mailingListId) {
             SubscriptionRecord::deleteAll([
                 'subscriberId' => $subscriberId,
@@ -97,13 +139,26 @@ class Subscribers extends Component
 
         // Update subscriber status
         $subscriber = $this->getById($subscriberId);
+        $saved = true;
         if ($subscriber) {
             $subscriber->status = 'unsubscribed';
             $subscriber->unsubscribedAt = Db::prepareDateForDb(new \DateTime());
-            return Craft::$app->getElements()->saveElement($subscriber);
+            $saved = Craft::$app->getElements()->saveElement($subscriber);
         }
 
-        return true;
+        $this->_afterUnsubscribe($subscriberId, $list, $subscriber);
+
+        return $saved;
+    }
+
+    private function _afterUnsubscribe(int $subscriberId, ?MailingList $list, ?Subscriber $subscriber = null): void
+    {
+        if ($this->hasEventHandlers(self::EVENT_AFTER_UNSUBSCRIBE)) {
+            $this->trigger(self::EVENT_AFTER_UNSUBSCRIBE, new SubscriberEvent([
+                'subscriber' => $subscriber ?? Subscriber::find()->id($subscriberId)->status(null)->one(),
+                'mailingList' => $list,
+            ]));
+        }
     }
 
     public function importCsv(string $filePath, int $mailingListId): array

@@ -287,6 +287,22 @@ check('the API accepts its own key and refuses others', function() {
     return $ok === 200 && $bad === 401 ?: "good key $ok, wrong key $bad";
 });
 
+check('API event: fires a sequence trigger with the key; refused without it', function() {
+    $c = makeCampaign('api event step', null);
+    $seq = new justinholtweb\dispatch\models\Sequence(['name' => DP_PREFIX . ' api event', 'handle' => 'dpcheckapievent' . random_int(100, 999), 'triggerType' => 'event', 'triggerEvent' => 'dpcheck.api']);
+    $seq->steps = [new justinholtweb\dispatch\models\SequenceStep(['campaignId' => $c->id, 'delayMinutes' => 60])];
+    dp()->sequences->save($seq);
+    $s = makeSubscriber('apievent');
+
+    [$none] = http('POST', '/actions/dispatch/api/event', ['email' => $s->email, 'event' => 'dpcheck.api'], ['Accept: application/json']);
+    [$bad] = http('POST', '/actions/dispatch/api/event', ['email' => $s->email, 'event' => 'bad key!'], ['Authorization: Bearer dp-api-key-check', 'Accept: application/json']);
+    [$ok, $body] = http('POST', '/actions/dispatch/api/event', ['email' => $s->email, 'event' => 'dpcheck.api'], ['Authorization: Bearer dp-api-key-check', 'Accept: application/json']);
+    $enrolled = (new craft\db\Query())->from('{{%dispatch_enrolments}}')->where(['sequenceId' => $seq->id, 'subscriberId' => $s->id])->exists();
+
+    return $none === 401 && $bad === 400 && $ok === 200 && (json_decode($body, true)['enrolled'] ?? null) === 1 && $enrolled
+        ?: "no key $none, bad event $bad, ok $ok $body";
+});
+
 pc('set', $originalSettings ?? []);
 
 $cp = '/admin';
@@ -346,6 +362,132 @@ check('importing a non-CSV upload is refused', function() use ($list) {
     return !$queued;
 });
 
+echo "\nPro screens (admin)\n";
+
+check('segments: the builder renders, a posted rule set saves, and the count shows', function() use ($list) {
+    [$code, $html] = http('GET', '/admin/dispatch/segments/new');
+    if ($code !== 200 || !str_contains($html, 'condition-container')) {
+        return "new page HTTP $code";
+    }
+    $handle = 'dpcheckseg' . random_int(1000, 9999);
+    [$save] = http('POST', '/admin/actions/dispatch/segments/save', [
+        'CRAFT_CSRF_TOKEN' => csrf($html), 'name' => DP_PREFIX . ' http segment', 'handle' => $handle,
+        // A posted condition class is ignored: segments are always SubscriberConditions.
+        'condition' => ['class' => 'craft\\elements\\conditions\\users\\UserCondition', 'conditionRules' => [
+            ['class' => justinholtweb\dispatch\elements\conditions\MailingListConditionRule::class, 'operator' => 'in', 'values' => [(string)$list->id]],
+        ]],
+    ]);
+    $segment = dp()->segments->getByHandle($handle);
+    [$editCode, $edit] = $segment ? http('GET', '/admin/dispatch/segments/' . $segment->id) : [0, ''];
+
+    return $save === 302 && $segment && count($segment->getCondition()->getConditionRules()) === 1
+        && $editCode === 200 && str_contains($edit, 'right now') ?: "save $save, edit $editCode";
+});
+
+check('sequences: the editor renders and saves a list-triggered sequence with steps', function() use ($list, $campaign) {
+    [$code, $html] = http('GET', '/admin/dispatch/sequences/new');
+    $handle = 'dpcheckseq' . random_int(1000, 9999);
+    [$save] = http('POST', '/admin/actions/dispatch/sequences/save', [
+        'CRAFT_CSRF_TOKEN' => csrf($html), 'name' => DP_PREFIX . ' http sequence', 'handle' => $handle, 'enabled' => '1',
+        'triggerType' => 'list', 'triggerListId' => $list->id,
+        'steps' => ['new1' => ['campaignId' => $campaign->id, 'delay' => 2, 'unit' => 'days']],
+    ]);
+    $seq = dp()->sequences->getByHandle($handle);
+    $steps = $seq ? dp()->sequences->getSteps($seq->id) : [];
+
+    return $code === 200 && $save === 302 && count($steps) === 1 && $steps[0]->delayMinutes === 2880 ?: "page $code, save $save";
+});
+
+check('a POST without a CSRF token is refused', function() {
+    [$code] = http('POST', '/admin/actions/dispatch/sequences/save', ['name' => 'x', 'handle' => 'x']);
+
+    return $code === 400 ?: "HTTP $code";
+});
+
+check('integrations: an endpoint saves; Send test to a private address is refused and logged, not sent', function() {
+    [, $html] = http('GET', '/admin/dispatch/integrations/new');
+    [$save] = http('POST', '/admin/actions/dispatch/integrations/save', [
+        'CRAFT_CSRF_TOKEN' => csrf($html), 'name' => DP_PREFIX . ' http endpoint', 'url' => 'http://127.0.0.1:8080/hook',
+        'secret' => 'whsec_http', 'enabled' => '1', 'events' => ['subscriber.subscribed'],
+    ]);
+    $id = (int)(new craft\db\Query())->select('id')->from('{{%dispatch_endpoints}}')->where(['name' => DP_PREFIX . ' http endpoint'])->scalar();
+    [, $edit] = http('GET', '/admin/dispatch/integrations/' . $id);
+    [$test] = http('POST', '/admin/actions/dispatch/integrations/test', ['CRAFT_CSRF_TOKEN' => csrf($edit), 'endpointId' => $id]);
+    $log = (new craft\db\Query())->from('{{%dispatch_deliveries}}')->where(['endpointId' => $id, 'event' => 'ping'])->one();
+
+    return $save === 302 && $id && $test === 302 && $log && $log['status'] === 'failed' && str_contains((string)$log['error'], 'public')
+        ?: "save $save, test $test, log " . json_encode($log);
+});
+
+check('campaign edit has the segment picker and A/B section; A/B settings save', function() use ($list) {
+    $c = makeCampaign('http ab', $list);
+    [$code, $html] = http('GET', '/admin/dispatch/campaigns/' . $c->id);
+    [$save] = http('POST', '/admin/actions/dispatch/campaigns/save', [
+        'CRAFT_CSRF_TOKEN' => csrf($html), 'campaignId' => $c->id, 'title' => $c->title, 'subject' => 'A subject',
+        'mailingListId' => $list->id, 'segmentId' => '', 'abEnabled' => '1', 'abSubjects' => ['new1' => ['subject' => 'B subject']],
+        'abTestPercent' => 30, 'abWaitHours' => 1.5, 'abMetric' => 'clicks',
+    ]);
+    $saved = Craft::$app->getElements()->getElementById($c->id, justinholtweb\dispatch\elements\Campaign::class);
+
+    return $code === 200 && str_contains($html, 'name="segmentId"') && str_contains($html, 'abSubjects') && substr_count(strtolower($html), '<form') <= 2
+        && $save === 302 && $saved->abEnabled && $saved->getAbSubjects() === ['B subject'] && $saved->abTestPercent === 30
+        && $saved->abWaitMinutes === 90 && $saved->abMetric === 'clicks' ?: "page $code, save $save";
+});
+
+check('the Pro index and edit screens render with data in them', function() use ($list, $sub) {
+    $seqId = (int)(new craft\db\Query())->select('id')->from('{{%dispatch_sequences}}')->where(['like', 'name', DP_PREFIX . '%', false])->scalar();
+    $endpointId = (int)(new craft\db\Query())->select('id')->from('{{%dispatch_endpoints}}')->where(['like', 'name', DP_PREFIX . '%', false])->scalar();
+
+    // A decided A/B campaign, so the results table renders.
+    $c = makeCampaign('http ab results', $list);
+    $c->subject = 'Subject A';
+    $c->abEnabled = true;
+    $c->setAbSubjects(['Subject B']);
+    $c->campaignStatus = 'sent';
+    $c->abStatus = 'decided';
+    $c->abWinner = 1;
+    Craft::$app->getElements()->saveElement($c);
+    logSend($c, $sub, '<abres@dp.test>');
+    craft\helpers\Db::update('{{%dispatch_sendlog}}', ['variant' => 1], ['campaignId' => $c->id]);
+
+    $pages = [
+        '/admin/dispatch/segments' => DP_PREFIX . ' http segment',
+        '/admin/dispatch/sequences' => DP_PREFIX . ' http sequence',
+        "/admin/dispatch/sequences/$seqId" => 'Progress',
+        '/admin/dispatch/integrations' => DP_PREFIX . ' http endpoint',
+        "/admin/dispatch/integrations/$endpointId" => 'Recent deliveries',
+        '/admin/dispatch/campaigns/' . $c->id => 'Winner',
+        '/admin/dispatch/subscribers/' . $sub->id => 'Mailing Lists',
+        '/admin/dispatch/settings' => 'Subscriber Fields',
+    ];
+
+    foreach ($pages as $path => $needle) {
+        [$code, $html] = http('GET', $path);
+        if ($code !== 200 || !str_contains($html, $needle)) {
+            return "$path → HTTP $code" . ($code === 200 ? ", missing “{$needle}”" : '');
+        }
+    }
+
+    return true;
+});
+
+check('the Subscribers index still loads, and its filter HUD offers the segment rules', function() use ($sub) {
+    [, $page] = http('GET', '/admin/dispatch/subscribers');
+    $t = csrf($page);
+    $headers = ['Accept: application/json', 'X-CSRF-Token: ' . $t, 'X-Requested-With: XMLHttpRequest'];
+    [$code, $body] = http('POST', '/admin/actions/element-indexes/get-elements', ['elementType' => justinholtweb\dispatch\elements\Subscriber::class, 'source' => '*', 'context' => 'index', 'viewState' => ['mode' => 'table', 'static' => false]], $headers);
+    [$hudCode, $hud] = http('POST', '/admin/actions/element-indexes/filter-hud', ['elementType' => justinholtweb\dispatch\elements\Subscriber::class, 'source' => '*', 'id' => 'dpcheck', 'conditionConfig' => ['class' => justinholtweb\dispatch\elements\conditions\SubscriberCondition::class]], $headers);
+
+    return $code === 200 && str_contains($body, (string)$sub->email) && $hudCode === 200 && str_contains($hud, 'Mailing list')
+        ?: "index $code " . substr(strip_tags($body), 0, 600) . ", hud $hudCode";
+});
+
+check('subscriber fields settings render for an admin', function() {
+    [$code, $html] = http('GET', '/admin/dispatch/settings/subscriber-fields');
+
+    return $code === 200 && str_contains($html, 'layoutdesigner') ?: "HTTP $code";
+});
+
 check('an admin saving one settings page keeps the other page\'s settings and ignores unknown keys', function() use ($originalSettings) {
     pc('set', array_merge($originalSettings ?? [], ['sesTopicArn' => 'arn:aws:sns:us-east-1:1:keep']));
     [, $page] = http('GET', '/admin/dispatch/settings');
@@ -383,6 +525,39 @@ check('a non-admin with dispatch:manageSettings cannot save settings', function(
     Craft::$app->getElements()->deleteElement($user, true);
 
     return $pageCode === 200 && $code === 403 && ($after['defaultFromName'] ?? '') !== 'hijacked' ?: "page $pageCode, save $code";
+});
+
+echo "\nPro screens (permissions)\n";
+
+check('a user without the Pro permissions (or admin) is refused segments, sequences and integrations', function() use ($campaign) {
+    global $jar;
+    $user = new craft\elements\User(['username' => 'dpcheckpro', 'email' => 'dpcheckpro@example.test', 'newPassword' => 'Dp-check-pass-2026', 'active' => true]);
+    Craft::$app->getElements()->saveElement($user, false);
+    Craft::$app->getUserPermissions()->saveUserPermissions($user->id, ['accesscp', 'accessplugin-dispatch', 'dispatch:accessplugin', 'dispatch:managecampaigns', 'dispatch:managesettings']);
+
+    $jar = tempnam(sys_get_temp_dir(), 'dp');
+    http('POST', '/actions/users/login', ['CRAFT_CSRF_TOKEN' => token(), 'loginName' => 'dpcheckpro', 'password' => 'Dp-check-pass-2026'], ['Accept: application/json']);
+    [$control, $page] = http('GET', '/admin/dispatch/campaigns/' . $campaign->id);
+    $t = csrf($page) ?? token();
+    $codes = [];
+    foreach (['/admin/dispatch/segments', '/admin/dispatch/sequences', '/admin/dispatch/integrations', '/admin/dispatch/settings/subscriber-fields'] as $path) {
+        $codes[$path] = http('GET', $path)[0];
+    }
+    $codes['save segment'] = http('POST', '/admin/actions/dispatch/segments/save', ['CRAFT_CSRF_TOKEN' => $t, 'name' => 'x', 'handle' => 'dpcheckdenied'], ['Accept: application/json'])[0];
+    $codes['save sequence'] = http('POST', '/admin/actions/dispatch/sequences/save', ['CRAFT_CSRF_TOKEN' => $t, 'name' => 'x', 'handle' => 'dpcheckdenied'], ['Accept: application/json'])[0];
+    $codes['save endpoint'] = http('POST', '/admin/actions/dispatch/integrations/save', ['CRAFT_CSRF_TOKEN' => $t, 'name' => DP_PREFIX . ' denied', 'url' => 'https://example.com/', 'secret' => 'x', 'events' => ['subscriber.subscribed']], ['Accept: application/json'])[0];
+    $codes['field layout'] = http('POST', '/admin/actions/dispatch/campaigns/save-subscriber-fields', ['CRAFT_CSRF_TOKEN' => $t], ['Accept: application/json'])[0];
+
+    // Granted the segment permission, the same user gets in (proves the refusals above weren't a dead session).
+    Craft::$app->getUserPermissions()->saveUserPermissions($user->id, ['accesscp', 'accessplugin-dispatch', 'dispatch:accessplugin', 'dispatch:managecampaigns', 'dispatch:managesegments']);
+    [$granted] = http('GET', '/admin/dispatch/segments');
+
+    $created = (new craft\db\Query())->from('{{%dispatch_endpoints}}')->where(['name' => DP_PREFIX . ' denied'])->exists()
+        || (new craft\db\Query())->from('{{%dispatch_segments}}')->where(['handle' => 'dpcheckdenied'])->exists()
+        || (new craft\db\Query())->from('{{%dispatch_sequences}}')->where(['handle' => 'dpcheckdenied'])->exists();
+    Craft::$app->getElements()->deleteElement($user, true);
+
+    return $control === 200 && $granted === 200 && !$created && array_unique(array_values($codes)) === [403] ?: json_encode([$control, $granted, $codes]);
 });
 
 sweep();

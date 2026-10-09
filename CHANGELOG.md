@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## 5.2.0 - 2026-10-08
+
+The four Pro features the editions table has listed all along — drip sequences, A/B subject tests, dynamic segments and webhook integrations — were not in the plugin. They are now.
+
+### Added
+
+- **Drip sequences (Pro).** Dispatch → Sequences: a trigger — a subscriber joins a list, or a custom event fires (`Plugin::getInstance()->sequences->fire('order.completed', $email)`, or the new REST `event` endpoint) — then a series of campaigns, each a set number of minutes, hours or days after the last. A subscriber is enrolled once, ever; unsubscribing, bouncing or complaining stops their sequences, leaving the trigger list stops that list's; a step is never sent twice and nobody gets a campaign they already received. Turning a sequence off pauses it. Plugins can name their trigger events (`Sequences::EVENT_REGISTER_TRIGGER_EVENTS`) and veto enrolments (`EVENT_BEFORE_ENROL`).
+- **A/B subject line testing (Pro).** On a campaign: alternative subject lines, a test group size, a wait, and open or click rate. The test group is split across the subjects, the winner is picked after the wait without anyone coming back, and everyone else — including people who joined meanwhile — gets the winning subject. Per-subject results are on the campaign.
+- **Dynamic segments (Pro).** Dispatch → Segments: saved rules built with Craft's condition builder — mailing list membership, signup date, email, status, opened or clicked a campaign (or any campaign), last activity, and any custom subscriber field. A campaign can be sent to a segment, within its list or on its own; the rules are evaluated when it sends. The same rules filter the Subscribers index.
+- **Integrations — outgoing webhooks (Pro).** Dispatch → Integrations (admins): endpoints notified when subscribers join, leave, bounce or complain and when campaigns are sent, opened or clicked. Bodies are signed (`X-Dispatch-Signature`, HMAC-SHA256 with the endpoint's secret), delivered by queue jobs with retries and backoff, and logged per endpoint with Redeliver and Send test. Endpoint URLs must resolve to public addresses (loopback, private and cloud-metadata ranges are refused, the connection is pinned and redirects aren't followed); `allowPrivateIntegrationHosts` in `config/dispatch.php` lifts that for internal services.
+- **Custom subscriber fields.** Settings → Subscriber Fields (admins): a field layout for subscribers, kept in project config. The fields appear on the subscriber edit page and in campaign Twig, and each becomes a segment rule. (The README promised field layout support; there was no way to set one up.)
+- **A scheduler.** Scheduled campaigns, A/B winners and drip emails go out at their time from a self-arming queue job — no cron needed; `php craft dispatch/scheduler/run` is there as a cron backstop for sites whose queue only runs on web requests.
+- Events: `Subscribers::EVENT_AFTER_SUBSCRIBE` / `EVENT_AFTER_UNSUBSCRIBE`, `Tracker::EVENT_ON_COMPLAINT`, `AbTesting::EVENT_AFTER_PICK_WINNER`, `Integrations::EVENT_BEFORE_DISPATCH`.
+- Permissions: *Manage segments* and *Manage drip sequences*.
+- The settings screens link to each other.
+
+### Fixed
+
+- **Scheduled campaigns never sent.** `Campaigns::schedule()` marked a campaign scheduled and nothing ever picked it up; the scheduler now starts it at its time.
+- **A campaign could be sent twice.** Two clicks on Send (or a scheduled campaign started twice) each queued a full send; the campaign is now claimed before the job is queued. A send job retried after failing part way through no longer mails the first part of the list again — recipients already in the send log are skipped.
+- **`Subscribers::getByEmail()` treated `*` as a wildcard**, so an API unsubscribe for `*` unsubscribed whoever matched first. Email lookups are exact.
+- One subscriber whose email fails to render no longer stops the rest of the batch.
+- A campaign's sent date is stored in UTC like every other date.
+- Uninstalling removes the subscriber field layout from project config.
+
 ## 5.1.0 - 2026-09-29
 
 ### Security

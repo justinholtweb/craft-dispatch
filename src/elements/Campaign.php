@@ -35,11 +35,47 @@ class Campaign extends Element
     public ?string $body = null;
     public string $campaignStatus = 'draft';
     public ?int $mailingListId = null;
+
+    /** A dynamic segment (Pro) narrowing — or, with no list, defining — the audience. */
+    public ?int $segmentId = null;
     public ?string $scheduledAt = null;
     public ?string $sentAt = null;
     public int $totalRecipients = 0;
     public int $totalSent = 0;
     public int $totalFailed = 0;
+
+    /** A/B subject test (Pro). Variant 0 is `subject`; these are variants 1, 2… */
+    public bool $abEnabled = false;
+    /**
+     * @var string[] Stored as JSON; reached through get/setAbSubjects() so a row's JSON string
+     * from the element query goes through the setter instead of failing the typed property.
+     */
+    private array $_abSubjects = [];
+    /** Share of the audience, in percent, that receives the test. */
+    public int $abTestPercent = 20;
+    /** `opens` or `clicks` — how the winner is picked. */
+    public string $abMetric = 'opens';
+    /** How long after the test send the winner is picked and the remainder sent. */
+    public int $abWaitMinutes = 240;
+    /** null, `testing`, `waiting`, `deciding` or `decided`. */
+    public ?string $abStatus = null;
+    public ?int $abWinner = null;
+    public ?string $abDecideAt = null;
+
+    public function setAbSubjects(mixed $value): void
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        $this->_abSubjects = is_array($value) ? array_values(array_map('strval', $value)) : [];
+    }
+
+    /** @return string[] */
+    public function getAbSubjects(): array
+    {
+        return $this->_abSubjects;
+    }
 
     public static function displayName(): string
     {
@@ -228,9 +264,56 @@ class Campaign extends Element
         $rules[] = [['subject', 'fromName', 'fromEmail', 'replyToEmail', 'templatePath'], 'string', 'max' => 255];
         $rules[] = [['fromEmail', 'replyToEmail'], 'email', 'skipOnEmpty' => true];
         $rules[] = [['campaignStatus'], 'in', 'range' => ['draft', 'scheduled', 'sending', 'sent', 'failed']];
-        $rules[] = [['mailingListId', 'totalRecipients', 'totalSent', 'totalFailed'], 'integer'];
+        $rules[] = [['mailingListId', 'segmentId', 'totalRecipients', 'totalSent', 'totalFailed'], 'integer'];
+        $rules[] = [['abTestPercent'], 'integer', 'min' => 1, 'max' => 100];
+        $rules[] = [['abWaitMinutes'], 'integer', 'min' => 0, 'max' => 60 * 24 * 14];
+        $rules[] = [['abMetric'], 'in', 'range' => ['opens', 'clicks']];
+        $rules[] = [['abSubjects'], 'validateAbSubjects', 'skipOnEmpty' => false];
 
         return $rules;
+    }
+
+    /** A/B subject variants must be non-empty strings that fit the subject column. */
+    public function validateAbSubjects(string $attribute): void
+    {
+        $this->_abSubjects = array_values(array_filter(
+            array_map(static fn($s) => trim((string)$s), $this->_abSubjects),
+            static fn(string $s) => $s !== '',
+        ));
+
+        foreach ($this->_abSubjects as $subject) {
+            if (mb_strlen($subject) > 255) {
+                $this->addError($attribute, Craft::t('dispatch', 'Subject variants may be at most 255 characters.'));
+            }
+        }
+
+        if ($this->abEnabled && $this->_abSubjects === []) {
+            $this->addError($attribute, Craft::t('dispatch', 'An A/B test needs at least one alternative subject line.'));
+        }
+    }
+
+    /**
+     * The subject line for an A/B variant: 0 is the campaign's own subject, 1… the alternatives.
+     * Out-of-range variants fall back to the campaign subject.
+     */
+    public function getSubjectForVariant(?int $variant): string
+    {
+        if ($variant !== null && $variant > 0 && isset($this->_abSubjects[$variant - 1])) {
+            return $this->_abSubjects[$variant - 1];
+        }
+
+        return (string)$this->subject;
+    }
+
+    /** @return string[] Every subject variant, indexed by variant number. */
+    public function getSubjectVariants(): array
+    {
+        return array_merge([(string)$this->subject], $this->_abSubjects);
+    }
+
+    public function getSegment(): ?\justinholtweb\dispatch\models\Segment
+    {
+        return $this->segmentId ? \justinholtweb\dispatch\Plugin::getInstance()->segments->getById($this->segmentId) : null;
     }
 
     public function afterSave(bool $isNew): void
@@ -253,6 +336,15 @@ class Campaign extends Element
         $record->body = $this->body;
         $record->campaignStatus = $this->campaignStatus;
         $record->mailingListId = $this->mailingListId;
+        $record->segmentId = $this->segmentId;
+        $record->abEnabled = $this->abEnabled;
+        $record->abSubjects = $this->_abSubjects ? json_encode($this->_abSubjects) : null;
+        $record->abTestPercent = $this->abTestPercent;
+        $record->abMetric = $this->abMetric;
+        $record->abWaitMinutes = $this->abWaitMinutes;
+        $record->abStatus = $this->abStatus;
+        $record->abWinner = $this->abWinner;
+        $record->abDecideAt = $this->abDecideAt;
         $record->scheduledAt = $this->scheduledAt;
         $record->sentAt = $this->sentAt;
         $record->totalRecipients = $this->totalRecipients;

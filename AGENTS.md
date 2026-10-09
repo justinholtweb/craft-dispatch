@@ -10,17 +10,20 @@ Dispatch is a Craft CMS 5 email marketing plugin. It manages subscribers, mailin
 src/
 ├── Plugin.php                 # Entry point. Registers elements, routes, permissions, services.
 ├── icon.svg / icon-mask.svg   # CP icons (mask = fill-only for nav)
+├── console/controllers/       # `dispatch/scheduler/run` (cron backstop for the scheduler)
 ├── controllers/               # HTTP controllers (CP + public-facing)
 ├── elements/                  # Craft element types: Subscriber, Campaign, MailingList
+│   ├── conditions/            # SubscriberCondition + rules (segments, index filters)
 │   └── db/                    # Element query classes
 ├── enums/                     # CampaignStatus, SubscriberStatus (PHP 8.1 enums)
 ├── events/                    # Event classes fired during send, subscribe, track
 ├── helpers/                   # CssInliner, TrackingHelper (HMAC tokens, pixel injection)
-├── migrations/                # Install.php creates all 6 tables
-├── models/                    # Settings, Edition (feature gating), SendReport
-├── queue/jobs/                # SendCampaignJob, ImportSubscribersJob, SyncUsersJob
+├── migrations/                # Install.php + ProSchemaTrait (5.2 tables, shared with the upgrade migration)
+├── models/                    # Settings, Edition (feature gating), SendReport, Segment, Sequence(Step), Endpoint
+├── queue/jobs/                # SendCampaignJob (all/test/remainder), ProcessScheduleJob, DeliverWebhookJob, Import, SyncUsers
 ├── records/                   # ActiveRecord classes for each table
-├── services/                  # Core business logic (Subscribers, Campaigns, Lists, Sender, Tracker, Transports)
+├── services/                  # Subscribers, Campaigns, Lists, Sender, Tracker, Transports, WebhookVerifier,
+│                              # Scheduler, Sequences, AbTesting, Segments, Integrations (one service per Pro feature)
 ├── templates/                 # Twig templates for CP pages and email layouts
 │   ├── _frontend/             # Public pages: unsubscribe, preferences
 │   ├── _layouts/              # Base CP layout
@@ -57,10 +60,19 @@ if ($this->is(self::EDITION_LITE)) { ... }
 ```
 
 ### Email Pipeline
-1. `Campaigns::send()` pushes a `SendCampaignJob` to the queue
-2. Job fetches subscribers in batches (configurable, default 50)
+1. `Campaigns::send()` claims the campaign (conditional UPDATE draft/scheduled → sending) and pushes a `SendCampaignJob` — phase `test` when an A/B test is on (Pro), else `all`
+2. Job walks the audience (`Campaigns::audienceQuery()`: list, narrowed by segment) by ID in batches, skipping anyone already in the send log for the campaign — a retried job never mails anyone twice
 3. Per subscriber: sandboxed Twig render (`Sender::renderEditorTwig()`) → CSS inline → inject tracking pixel → rewrite links → send via mailer → log to `dispatch_sendlog`
 4. Campaign status updates as it progresses: draft → sending → sent/failed
+
+### Scheduler (5.2)
+Scheduled campaigns, A/B winners and drip steps have due times. `Scheduler::arm($when)` pushes a delayed `ProcessScheduleJob` (deduped through a cache key); the job runs `Scheduler::run()` and re-arms for the next due time. `craft dispatch/scheduler/run` is the cron backstop. **Every due item is claimed with a conditional UPDATE before it is sent** — keep it that way; it is what makes overlapping runs safe.
+
+### Pro automation (5.2)
+- **Segments** (`Segments`): DB rows holding a `SubscriberCondition` config. Rules go through `SubscriberQuery` params (`inLists`, `openedCampaigns`, `lastActivity`, …). The posted condition `class` is never trusted (`Segment::getCondition()` forces it).
+- **Sequences** (`Sequences`): trigger (list join via `Subscribers::EVENT_AFTER_SUBSCRIBE`, or `fire($eventKey, $subscriber)`) → one enrolment per subscriber per sequence (unique index) → steps materialised into `dispatch_sequencesends` with `dueAt` → `processDue()` claims pending → sending, re-checks the subscriber, sends. Non-active subscribers (any save) and list leavers are stopped in `Plugin::_registerAutomation()`.
+- **A/B** (`AbTesting`): `testPlan()` is a stable hash shuffle; test sends record `sendlog.variant`; `decideDue()` claims waiting → deciding, picks the winner, queues the `remainder` phase (variant null in the log).
+- **Integrations** (`Integrations`): outgoing webhooks — not the incoming `Webhook*` classes. Delivery log rows + `DeliverWebhookJob` (never throws; retries by re-pushing with backoff). URLs go through `target()` (helpers/Ip, pinned CURLOPT_RESOLVE, no redirects). Signature `t=…,v1=HMAC(t.body)`.
 
 ### Tracking
 - Open tracking: 1×1 transparent GIF served by `TrackingController::actionOpen()`
@@ -81,6 +93,13 @@ RFC 8058 compliant: `List-Unsubscribe` + `List-Unsubscribe-Post` headers on ever
 | `dispatch_subscriptions` | Pivot | subscriber↔list, unique composite |
 | `dispatch_sendlog` | Log | Per-email delivery record |
 | `dispatch_tracking` | Log | Opens/clicks (Lite+) |
+| `dispatch_segments` | Pro | Saved subscriber conditions |
+| `dispatch_sequences` / `_sequencesteps` | Pro | Drip sequences and their steps (campaign + delay) |
+| `dispatch_enrolments` | Pro | Subscriber × sequence, unique |
+| `dispatch_sequencesends` | Pro | Materialised steps with `dueAt` and status |
+| `dispatch_endpoints` / `_deliveries` | Pro | Outgoing webhook endpoints and their delivery log |
+
+Campaigns also carry `segmentId` and the `ab*` columns; the send log carries `variant`.
 
 All tables created in `migrations/Install.php`. Element tables have cascading deletes from `elements.id`.
 
@@ -94,8 +113,11 @@ All tables created in `migrations/Install.php`. Element tables have cascading de
 | Open/click tracking | No | Yes | Yes |
 | Dashboard | No | Yes | Yes |
 | Custom transports | No | Yes | Yes |
-| Webhooks | No | No | Yes |
+| Bounce webhooks (incoming) | No | No | Yes |
 | REST API | No | No | Yes |
+| Segments, drip sequences, A/B tests, Integrations | No | No | Yes |
+
+Downgrades degrade, never delete: segment campaigns refuse to send, drip steps wait, outgoing webhooks stop; an A/B test already started still finishes.
 
 ## Common Patterns
 
@@ -127,6 +149,7 @@ Integration checks run inside the shared plugin-testing harness:
 ```sh
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/checks.php  # services
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/http.php    # links, webhooks, CP (needs Pro)
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/pro.php     # segments, sequences, A/B, integrations, scheduler
 ```
 
 **Never run the Codeception suite (`tests/unit`, `codecept`) in the harness container.** With no `tests/.env` its database setup falls back to the harness DB and drops every table (it wiped the harness on 2026-09-28).

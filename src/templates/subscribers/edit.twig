@@ -56,6 +56,13 @@
             ],
         }) }}
 
+        {% set fieldLayout = subscriber.getFieldLayout() %}
+        {% if fieldLayout and fieldLayout.getCustomFields()|length %}
+            <hr>
+            {# Custom fields (Settings → Subscriber Fields); inputs are namespaced `fields[…]`. #}
+            {{ fieldLayout.createForm(subscriber).render()|raw }}
+        {% endif %}
+
         {% if lists|length %}
             <hr>
             <h2>{{ 'Mailing Lists'|t('dispatch') }}</h2>

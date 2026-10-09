@@ -14,6 +14,15 @@ use craft\db\ActiveRecord;
  * @property string|null $body
  * @property string $campaignStatus
  * @property int|null $mailingListId
+ * @property int|null $segmentId
+ * @property bool $abEnabled
+ * @property string|null $abSubjects
+ * @property int $abTestPercent
+ * @property string $abMetric
+ * @property int $abWaitMinutes
+ * @property string|null $abStatus
+ * @property int|null $abWinner
+ * @property string|null $abDecideAt
  * @property string|null $scheduledAt
  * @property string|null $sentAt
  * @property int $totalRecipients

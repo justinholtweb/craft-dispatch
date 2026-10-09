@@ -5,6 +5,10 @@
 {% set selectedSubnavItem = 'settings' %}
 {% set fullPageForm = true %}
 
+{% block sidebar %}
+    {% include 'dispatch/settings/_nav' with { settingsPage: 'transport' } %}
+{% endblock %}
+
 {% block pluginContent %}
     {{ actionInput('dispatch/campaigns/save-settings') }}
     {{ redirectInput('dispatch/settings/transport') }}

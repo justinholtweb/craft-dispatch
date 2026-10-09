@@ -17,6 +17,7 @@ class Tracker extends Component
     public const EVENT_ON_OPEN = 'onOpen';
     public const EVENT_ON_CLICK = 'onClick';
     public const EVENT_ON_BOUNCE = 'onBounce';
+    public const EVENT_ON_COMPLAINT = 'onComplaint';
 
     public function recordOpen(int $campaignId, int $subscriberId, ?string $ipAddress = null, ?string $userAgent = null): bool
     {
@@ -111,6 +112,12 @@ class Tracker extends Component
             $subscriber->status = 'complained';
             Craft::$app->getElements()->saveElement($subscriber);
         }
+
+        $this->trigger(self::EVENT_ON_COMPLAINT, new TrackingEvent([
+            'campaignId' => $campaignId,
+            'subscriberId' => $subscriberId,
+            'type' => 'complaint',
+        ]));
 
         return true;
     }

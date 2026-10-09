@@ -1,0 +1,50 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Drip Sequences'|t('dispatch') %}
+{% set selectedSubnavItem = 'sequences' %}
+
+{% block actionButton %}
+    <a href="{{ url('dispatch/sequences/new') }}" class="btn submit add icon">{{ 'New Sequence'|t('dispatch') }}</a>
+{% endblock %}
+
+{% block pluginContent %}
+    {% if sequences|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'Name'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Trigger'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Status'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'In progress'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Completed'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Stopped'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Emails sent'|t('dispatch') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sequence in sequences %}
+                    {% set s = stats[sequence.id] %}
+                    <tr>
+                        <th scope="row"><a href="{{ url('dispatch/sequences/' ~ sequence.id) }}">{{ sequence.name }}</a></th>
+                        <td>
+                            {% if sequence.triggerType == 'list' %}
+                                {{ 'Joins {list}'|t('dispatch', { list: lists[sequence.triggerListId] ?? '—' }) }}
+                            {% else %}
+                                {{ 'Event'|t('dispatch') }} <code>{{ sequence.triggerEvent }}</code>
+                            {% endif %}
+                        </td>
+                        <td><span class="status {{ sequence.enabled ? 'green' : '' }}"></span>{{ sequence.enabled ? 'Enabled'|t('dispatch') : 'Paused'|t('dispatch') }}</td>
+                        <td>{{ s.active|number }}</td>
+                        <td>{{ s.completed|number }}</td>
+                        <td>{{ s.stopped|number }}</td>
+                        <td>{{ s.sent|number }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'No sequences yet. A sequence sends a series of campaigns to each subscriber who joins a list (or for whom a custom event fires), each a set delay after the last.'|t('dispatch') }}</p>
+        </div>
+    {% endif %}
+{% endblock %}

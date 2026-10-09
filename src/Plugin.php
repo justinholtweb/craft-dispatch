@@ -17,9 +17,14 @@ use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
 use justinholtweb\dispatch\helpers\TrackingHelper;
 use justinholtweb\dispatch\models\Settings;
+use justinholtweb\dispatch\services\AbTesting;
 use justinholtweb\dispatch\services\Campaigns;
+use justinholtweb\dispatch\services\Integrations;
 use justinholtweb\dispatch\services\Lists;
+use justinholtweb\dispatch\services\Scheduler;
+use justinholtweb\dispatch\services\Segments;
 use justinholtweb\dispatch\services\Sender;
+use justinholtweb\dispatch\services\Sequences;
 use justinholtweb\dispatch\services\Subscribers;
 use justinholtweb\dispatch\services\Tracker;
 use justinholtweb\dispatch\services\Transports;
@@ -35,6 +40,11 @@ use yii\base\Event;
  * @property Tracker $tracker
  * @property Transports $transports
  * @property \justinholtweb\dispatch\services\WebhookVerifier $webhookVerifier
+ * @property Scheduler $scheduler
+ * @property Sequences $sequences
+ * @property AbTesting $abTesting
+ * @property Segments $segments
+ * @property Integrations $integrations
  * @property Settings $settings
  * @method Settings getSettings()
  */
@@ -44,7 +54,7 @@ class Plugin extends BasePlugin
     public const EDITION_LITE = 'lite';
     public const EDITION_PRO = 'pro';
 
-    public string $schemaVersion = '1.1.0';
+    public string $schemaVersion = '1.2.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
@@ -59,6 +69,11 @@ class Plugin extends BasePlugin
                 'tracker' => Tracker::class,
                 'transports' => Transports::class,
                 'webhookVerifier' => \justinholtweb\dispatch\services\WebhookVerifier::class,
+                'scheduler' => Scheduler::class,
+                'sequences' => Sequences::class,
+                'abTesting' => AbTesting::class,
+                'segments' => Segments::class,
+                'integrations' => Integrations::class,
             ],
         ];
     }
@@ -85,7 +100,141 @@ class Plugin extends BasePlugin
             $this->_registerCpRoutes();
             $this->_registerSiteRoutes();
             $this->_registerPermissions();
+            $this->_registerAutomation();
         });
+
+        $this->_registerSubscriberFieldLayout();
+    }
+
+    /** Project config path of the subscriber field layout (one layout, `[uid => config]`). */
+    public const PC_SUBSCRIBER_FIELD_LAYOUT = 'dispatch.subscriberFieldLayouts';
+
+    /**
+     * Wires the Pro automation to the events it reacts to: list joins start drip sequences,
+     * unsubscribes/bounces/complaints stop them, and every one of these (plus campaign sends,
+     * opens and clicks) is offered to the outgoing webhooks. Each handler checks the edition
+     * itself, so a Lite site pays one cheap check.
+     */
+    private function _registerAutomation(): void
+    {
+        $integrations = fn() => $this->integrations;
+
+        Event::on(Subscribers::class, Subscribers::EVENT_AFTER_SUBSCRIBE, function(\justinholtweb\dispatch\events\SubscriberEvent $event) use ($integrations) {
+            if (!$event->subscriber || !$event->mailingList) {
+                return;
+            }
+
+            $this->sequences->handleListJoin((int)$event->subscriber->id, (int)$event->mailingList->id);
+            $integrations()->dispatch(models\Endpoint::EVENT_SUBSCRIBED, [
+                'subscriber' => Integrations::subscriberData($event->subscriber),
+                'list' => Integrations::listData($event->mailingList),
+            ]);
+        });
+
+        Event::on(Subscribers::class, Subscribers::EVENT_AFTER_UNSUBSCRIBE, function(\justinholtweb\dispatch\events\SubscriberEvent $event) use ($integrations) {
+            if (!$event->subscriber) {
+                return;
+            }
+
+            // Leaving one list stops that list's sequences; the status change of a full
+            // unsubscribe stops the rest (below).
+            if ($event->mailingList) {
+                $this->sequences->stopForSubscriber((int)$event->subscriber->id, 'left the list', (int)$event->mailingList->id);
+            }
+
+            $integrations()->dispatch(models\Endpoint::EVENT_UNSUBSCRIBED, [
+                'subscriber' => Integrations::subscriberData($event->subscriber),
+                'list' => Integrations::listData($event->mailingList),
+            ]);
+        });
+
+        // Unsubscribed, bounced or complained — however it happened (CP, API, webhook, import).
+        Event::on(Subscriber::class, \craft\base\Element::EVENT_AFTER_SAVE, function(\yii\base\Event $event) {
+            /** @var Subscriber $subscriber */
+            $subscriber = $event->sender;
+
+            if ($subscriber->status !== 'active' && $subscriber->id) {
+                $this->sequences->stopForSubscriber((int)$subscriber->id, (string)$subscriber->status);
+            }
+        });
+
+        $tracking = function(string $name) use ($integrations) {
+            return function(\justinholtweb\dispatch\events\TrackingEvent $event) use ($name, $integrations) {
+                $data = [
+                    'subscriber' => Integrations::subscriberData(Subscriber::find()->id($event->subscriberId)->status(null)->one()),
+                    'campaign' => Integrations::campaignData(Campaign::find()->id($event->campaignId)->status(null)->one()),
+                ];
+
+                if ($event->url !== null) {
+                    $data['url'] = $event->url;
+                }
+
+                $integrations()->dispatch($name, $data);
+            };
+        };
+
+        Event::on(Tracker::class, Tracker::EVENT_ON_OPEN, $tracking(models\Endpoint::EVENT_OPENED));
+        Event::on(Tracker::class, Tracker::EVENT_ON_CLICK, $tracking(models\Endpoint::EVENT_CLICKED));
+        Event::on(Tracker::class, Tracker::EVENT_ON_BOUNCE, $tracking(models\Endpoint::EVENT_BOUNCED));
+        Event::on(Tracker::class, Tracker::EVENT_ON_COMPLAINT, $tracking(models\Endpoint::EVENT_COMPLAINED));
+
+        Event::on(Campaign::class, Campaign::EVENT_AFTER_SEND, function(\justinholtweb\dispatch\events\CampaignEvent $event) use ($integrations) {
+            $integrations()->dispatch(models\Endpoint::EVENT_CAMPAIGN_SENT, [
+                'campaign' => Integrations::campaignData($event->campaign),
+            ]);
+        });
+
+        Event::on(\craft\services\Gc::class, \craft\services\Gc::EVENT_RUN, [$this, 'collectGarbage']);
+    }
+
+    /** Trims the outgoing-webhook delivery log. A named method so tests can call it directly. */
+    public function collectGarbage(): void
+    {
+        $this->integrations->pruneDeliveries($this->getSettings()->integrationLogDays);
+    }
+
+    /**
+     * The subscriber field layout lives in project config, like Craft's own user field layout,
+     * so custom subscriber fields deploy with the rest of the schema.
+     */
+    private function _registerSubscriberFieldLayout(): void
+    {
+        $projectConfig = Craft::$app->getProjectConfig();
+        $handler = [$this, 'handleChangedSubscriberFieldLayout'];
+
+        $projectConfig
+            ->onAdd(self::PC_SUBSCRIBER_FIELD_LAYOUT, $handler)
+            ->onUpdate(self::PC_SUBSCRIBER_FIELD_LAYOUT, $handler)
+            ->onRemove(self::PC_SUBSCRIBER_FIELD_LAYOUT, $handler);
+
+        Event::on(\craft\services\ProjectConfig::class, \craft\services\ProjectConfig::EVENT_REBUILD, function(\craft\events\RebuildConfigEvent $event) {
+            $layout = Craft::$app->getFields()->getLayoutByType(Subscriber::class);
+
+            if ($layout->id && $layout->uid && ($config = $layout->getConfig())) {
+                $event->config['dispatch']['subscriberFieldLayouts'] = [$layout->uid => $config];
+            }
+        });
+    }
+
+    public function handleChangedSubscriberFieldLayout(\craft\events\ConfigEvent $event): void
+    {
+        $data = $event->newValue;
+        $fields = Craft::$app->getFields();
+
+        if (empty($data) || !is_array($data) || empty($config = reset($data))) {
+            $fields->deleteLayoutsByType(Subscriber::class);
+            return;
+        }
+
+        \craft\helpers\ProjectConfig::ensureAllFieldsProcessed();
+
+        $layout = \craft\models\FieldLayout::createFromConfig($config);
+        $layout->id = $fields->getLayoutByType(Subscriber::class)->id;
+        $layout->type = Subscriber::class;
+        $layout->uid = (string)key($data);
+        $fields->saveLayout($layout, false);
+
+        Craft::$app->getElements()->invalidateCachesForElementType(Subscriber::class);
     }
 
     public function getCpNavItem(): ?array
@@ -125,6 +274,29 @@ class Plugin extends BasePlugin
                 'label' => Craft::t('dispatch', 'Lists'),
                 'url' => 'dispatch/lists',
             ];
+        }
+
+        if ($this->is(self::EDITION_PRO)) {
+            if (Craft::$app->getUser()->checkPermission('dispatch:manageSegments')) {
+                $nav['subnav']['segments'] = [
+                    'label' => Craft::t('dispatch', 'Segments'),
+                    'url' => 'dispatch/segments',
+                ];
+            }
+
+            if (Craft::$app->getUser()->checkPermission('dispatch:manageSequences')) {
+                $nav['subnav']['sequences'] = [
+                    'label' => Craft::t('dispatch', 'Sequences'),
+                    'url' => 'dispatch/sequences',
+                ];
+            }
+
+            if (Craft::$app->getUser()->getIsAdmin()) {
+                $nav['subnav']['integrations'] = [
+                    'label' => Craft::t('dispatch', 'Integrations'),
+                    'url' => 'dispatch/integrations',
+                ];
+            }
         }
 
         if (Craft::$app->getUser()->getIsAdmin() ||
@@ -202,7 +374,19 @@ class Plugin extends BasePlugin
                 $event->rules['dispatch/lists/new'] = 'dispatch/lists/edit';
                 $event->rules['dispatch/lists/<listId:\d+>'] = 'dispatch/lists/edit';
 
+                // Segments, sequences, integrations [Pro]
+                $event->rules['dispatch/segments'] = 'dispatch/segments/index';
+                $event->rules['dispatch/segments/new'] = 'dispatch/segments/edit';
+                $event->rules['dispatch/segments/<segmentId:\d+>'] = 'dispatch/segments/edit';
+                $event->rules['dispatch/sequences'] = 'dispatch/sequences/index';
+                $event->rules['dispatch/sequences/new'] = 'dispatch/sequences/edit';
+                $event->rules['dispatch/sequences/<sequenceId:\d+>'] = 'dispatch/sequences/edit';
+                $event->rules['dispatch/integrations'] = 'dispatch/integrations/index';
+                $event->rules['dispatch/integrations/new'] = 'dispatch/integrations/edit';
+                $event->rules['dispatch/integrations/<endpointId:\d+>'] = 'dispatch/integrations/edit';
+
                 // Settings
+                $event->rules['dispatch/settings/subscriber-fields'] = 'dispatch/campaigns/settings-subscriber-fields';
                 $event->rules['dispatch/settings'] = 'dispatch/campaigns/settings';
                 $event->rules['dispatch/settings/transport'] = 'dispatch/campaigns/settings-transport';
             }
@@ -268,6 +452,13 @@ class Plugin extends BasePlugin
                         ],
                         'dispatch:manageSettings' => [
                             'label' => Craft::t('dispatch', 'Manage settings'),
+                        ],
+                        'dispatch:manageSegments' => [
+                            'label' => Craft::t('dispatch', 'Manage segments (Pro)'),
+                        ],
+                        'dispatch:manageSequences' => [
+                            'label' => Craft::t('dispatch', 'Manage drip sequences (Pro)'),
+                            'info' => Craft::t('dispatch', 'Sequences send campaigns to subscribers automatically.'),
                         ],
                     ],
                 ];

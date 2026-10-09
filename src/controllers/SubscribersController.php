@@ -87,6 +87,9 @@ class SubscribersController extends Controller
         $subscriber->lastName = $request->getBodyParam('lastName');
         $subscriber->status = $request->getBodyParam('status', 'active');
 
+        // Custom fields from the subscriber field layout (Settings → Subscriber Fields).
+        $subscriber->setFieldValuesFromRequest('fields');
+
         if (!Craft::$app->getElements()->saveElement($subscriber)) {
             Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t save subscriber.'));
             Craft::$app->getUrlManager()->setRouteParams(['subscriber' => $subscriber]);

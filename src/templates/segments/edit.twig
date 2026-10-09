@@ -1,0 +1,69 @@
+{% extends 'dispatch/_layouts/plugin' %}
+{% import '_includes/forms' as forms %}
+
+{% set selectedSubnavItem = 'segments' %}
+{% set fullPageForm = true %}
+{% set crumbs = [{ label: 'Segments'|t('dispatch'), url: url('dispatch/segments') }] %}
+
+{% block pluginContent %}
+    {{ actionInput('dispatch/segments/save') }}
+    {{ redirectInput('dispatch/segments') }}
+
+    {% if not isNew %}
+        {{ hiddenInput('segmentId', segment.id) }}
+    {% endif %}
+
+    <div id="fields">
+        {{ forms.textField({
+            label: 'Name'|t('dispatch'),
+            id: 'name',
+            name: 'name',
+            value: segment.name,
+            errors: segment.getErrors('name'),
+            required: true,
+            first: true,
+        }) }}
+
+        {{ forms.textField({
+            label: 'Handle'|t('dispatch'),
+            id: 'handle',
+            name: 'handle',
+            value: segment.handle,
+            errors: segment.getErrors('handle'),
+            class: 'code',
+            required: true,
+        }) }}
+
+        {{ forms.textareaField({
+            label: 'Description'|t('dispatch'),
+            id: 'description',
+            name: 'description',
+            value: segment.description,
+            rows: 2,
+        }) }}
+
+        {% embed '_includes/forms/field' with {
+            label: 'Rules'|t('dispatch'),
+            instructions: 'Subscribers matching every rule are in the segment. Campaigns sent to a segment go only to active subscribers, and the rules are checked when the campaign sends.'|t('dispatch'),
+            id: 'condition',
+        } %}
+            {% block input %}
+                {{ segment.getCondition().getBuilderHtml()|raw }}
+            {% endblock %}
+        {% endembed %}
+
+        {% if matching is not null %}
+            <p class="light">{{ '{count, plural, =1{One active subscriber matches} other{# active subscribers match}} right now.'|t('dispatch', { count: matching }) }}</p>
+        {% endif %}
+    </div>
+
+    {% if not isNew %}
+        <hr>
+        <div class="buttons">
+            <button type="button" class="btn formsubmit"
+                data-action="dispatch/segments/delete"
+                data-param="segmentId" data-value="{{ segment.id }}"
+                data-confirm="{{ 'Delete this segment? Campaigns sent to it will have no segment.'|t('dispatch') }}">{{ 'Delete'|t('dispatch') }}</button>
+        </div>
+    {% endif %}
+{% endblock %}

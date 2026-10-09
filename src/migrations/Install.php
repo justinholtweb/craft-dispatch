@@ -6,11 +6,14 @@ use craft\db\Migration;
 
 class Install extends Migration
 {
+    use ProSchemaTrait;
+
     public function safeUp(): bool
     {
         $this->_createTables();
         $this->_createIndexes();
         $this->_addForeignKeys();
+        $this->createProSchema();
 
         return true;
     }
@@ -35,10 +38,17 @@ class Install extends Migration
             $this->delete(\craft\db\Table::ELEMENTS, ['id' => $chunk]);
         }
 
+        // The subscriber field layout (5.2) lives in project config; leaving it would orphan a
+        // layout of a type that no longer exists.
+        \Craft::$app->getFields()->deleteLayoutsByType(\justinholtweb\dispatch\elements\Subscriber::class);
+        \Craft::$app->getProjectConfig()->remove(\justinholtweb\dispatch\Plugin::PC_SUBSCRIBER_FIELD_LAYOUT);
+
+        $this->dropProSchema();
         $this->dropTableIfExists('{{%dispatch_tracking}}');
         $this->dropTableIfExists('{{%dispatch_sendlog}}');
         $this->dropTableIfExists('{{%dispatch_subscriptions}}');
         $this->dropTableIfExists('{{%dispatch_campaigns}}');
+        $this->dropTableIfExists('{{%dispatch_segments}}');
         $this->dropTableIfExists('{{%dispatch_mailinglists}}');
         $this->dropTableIfExists('{{%dispatch_subscribers}}');
 

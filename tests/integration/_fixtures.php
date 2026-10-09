@@ -67,6 +67,13 @@ function sweep(): void
     foreach (MailingList::find()->title(DP_PREFIX . '*')->status(null)->trashed(null)->all() as $l) {
         $elements->deleteElement($l, true);
     }
+
+    // 5.2 Pro tables (steps, enrolments and deliveries cascade).
+    foreach (['{{%dispatch_sequences}}', '{{%dispatch_segments}}', '{{%dispatch_endpoints}}'] as $table) {
+        if (Craft::$app->getDb()->tableExists($table)) {
+            craft\helpers\Db::delete($table, ['like', 'name', DP_PREFIX . '%', false]);
+        }
+    }
 }
 
 function makeList(string $suffix): MailingList

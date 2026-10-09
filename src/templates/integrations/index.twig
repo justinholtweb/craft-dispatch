@@ -1,0 +1,37 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Integrations'|t('dispatch') %}
+{% set selectedSubnavItem = 'integrations' %}
+
+{% block actionButton %}
+    <a href="{{ url('dispatch/integrations/new') }}" class="btn submit add icon">{{ 'New Endpoint'|t('dispatch') }}</a>
+{% endblock %}
+
+{% block pluginContent %}
+    <p class="light">{{ 'Outgoing webhooks: Dispatch POSTs a signed JSON body to these URLs when subscribers join or leave, bounce or complain, and when campaigns are sent, opened or clicked. (Bounce webhooks from your email provider are set up under Settings → Delivery & Webhooks.)'|t('dispatch') }}</p>
+
+    {% if endpoints|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'Name'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'URL'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Events'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Status'|t('dispatch') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for endpoint in endpoints %}
+                    <tr>
+                        <th scope="row"><a href="{{ url('dispatch/integrations/' ~ endpoint.id) }}">{{ endpoint.name }}</a></th>
+                        <td><code>{{ endpoint.url }}</code></td>
+                        <td>{{ endpoint.events|join(', ') }}</td>
+                        <td><span class="status {{ endpoint.enabled ? 'green' : '' }}"></span>{{ endpoint.enabled ? 'Enabled'|t('dispatch') : 'Disabled'|t('dispatch') }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="zilch"><p>{{ 'No endpoints yet.'|t('dispatch') }}</p></div>
+    {% endif %}
+{% endblock %}

@@ -50,6 +50,140 @@
             errors: campaign.getErrors('mailingListId'),
         }) }}
 
+        {% if isPro %}
+            {{ forms.selectField({
+                label: 'Segment'|t('dispatch'),
+                instructions: 'Send only to subscribers matching this segment — within the list above, or, with no list, everyone the segment matches. Evaluated when the campaign sends.'|t('dispatch'),
+                id: 'segmentId',
+                name: 'segmentId',
+                value: campaign.segmentId,
+                options: segmentOptions,
+                errors: campaign.getErrors('segmentId'),
+            }) }}
+        {% endif %}
+
+        {% if usedInSequences|length %}
+            <p class="warning with-icon">
+                {{ 'This campaign is an email in the drip sequence {names}. Sending it here also mails it to the list; subscribers who get it here are skipped by the sequence.'|t('dispatch', {
+                    names: usedInSequences|map(s => s.name)|join(', '),
+                }) }}
+            </p>
+        {% endif %}
+
+        {% if isPro %}
+            <hr>
+
+            <h2>{{ 'A/B subject test'|t('dispatch') }}</h2>
+
+            {{ forms.lightswitchField({
+                label: 'Test subject lines'|t('dispatch'),
+                instructions: 'Send each subject to an equal share of a test group, wait, then send the winner to everyone else automatically.'|t('dispatch'),
+                id: 'abEnabled',
+                name: 'abEnabled',
+                on: campaign.abEnabled,
+                toggle: 'ab-settings',
+                disabled: campaign.campaignStatus not in ['draft', 'scheduled'],
+            }) }}
+
+            <div id="ab-settings"{% if not campaign.abEnabled %} class="hidden"{% endif %}>
+                {{ forms.editableTableField({
+                    label: 'Other subject lines'|t('dispatch'),
+                    instructions: 'Variant A is the subject line above; these are B, C… Twig works as in the subject.'|t('dispatch'),
+                    id: 'abSubjects',
+                    name: 'abSubjects',
+                    cols: { subject: { type: 'singleline', heading: 'Subject'|t('dispatch') } },
+                    rows: campaign.abSubjects|map(s => { subject: s }),
+                    allowAdd: true,
+                    allowDelete: true,
+                    allowReorder: true,
+                    addRowLabel: 'Add a subject'|t('dispatch'),
+                    errors: campaign.getErrors('abSubjects'),
+                }) }}
+
+                <div class="flex">
+                    <div class="flex-grow">
+                        {{ forms.textField({
+                            label: 'Test group size (%)'|t('dispatch'),
+                            id: 'abTestPercent',
+                            name: 'abTestPercent',
+                            value: campaign.abTestPercent,
+                            type: 'number',
+                            min: 1,
+                            max: 100,
+                            errors: campaign.getErrors('abTestPercent'),
+                        }) }}
+                    </div>
+                    <div class="flex-grow">
+                        {{ forms.textField({
+                            label: 'Pick the winner after (hours)'|t('dispatch'),
+                            id: 'abWaitHours',
+                            name: 'abWaitHours',
+                            value: campaign.abWaitMinutes / 60,
+                            type: 'number',
+                            min: 0,
+                            step: 0.25,
+                            errors: campaign.getErrors('abWaitMinutes'),
+                        }) }}
+                    </div>
+                    <div class="flex-grow">
+                        {{ forms.selectField({
+                            label: 'Winner by'|t('dispatch'),
+                            id: 'abMetric',
+                            name: 'abMetric',
+                            value: campaign.abMetric,
+                            options: [
+                                { label: 'Open rate'|t('dispatch'), value: 'opens' },
+                                { label: 'Click rate'|t('dispatch'), value: 'clicks' },
+                            ],
+                        }) }}
+                    </div>
+                </div>
+                <p class="light">{{ 'Open rates need open tracking on, and some mail apps open every message automatically — click rate is the sturdier measure when you have links.'|t('dispatch') }}</p>
+            </div>
+        {% endif %}
+
+        {% if abResults %}
+            <hr>
+
+            <h2>{{ 'A/B test results'|t('dispatch') }}</h2>
+
+            <p>
+                {% switch campaign.abStatus %}
+                    {% case 'testing' %}{{ 'Sending the test…'|t('dispatch') }}
+                    {% case 'waiting' %}{{ 'Test sent. The winner is picked and sent to everyone else at {date}.'|t('dispatch', { date: campaign.abDecideAt|datetime('short') }) }}
+                    {% case 'deciding' %}{{ 'Picking the winner…'|t('dispatch') }}
+                    {% default %}{{ 'Winner picked by {metric} and sent to the rest of the audience.'|t('dispatch', { metric: campaign.abMetric == 'clicks' ? 'click rate'|t('dispatch') : 'open rate'|t('dispatch') }) }}
+                {% endswitch %}
+            </p>
+
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'Variant'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Subject'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Sent'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Opened'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Open rate'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Clicked'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Click rate'|t('dispatch') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in abResults %}
+                        <tr>
+                            <th scope="row">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|slice(r.variant, 1) }}{% if r.winner %} <span class="badge">{{ 'Winner'|t('dispatch') }}</span>{% endif %}</th>
+                            <td>{{ r.subject }}</td>
+                            <td>{{ r.sent|number }}</td>
+                            <td>{{ r.opens|number }}</td>
+                            <td>{{ (r.openRate * 100)|number_format(1) }}%</td>
+                            <td>{{ r.clicks|number }}</td>
+                            <td>{{ (r.clickRate * 100)|number_format(1) }}%</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
         <hr>
 
         <h2>{{ 'Sender Details'|t('dispatch') }}</h2>

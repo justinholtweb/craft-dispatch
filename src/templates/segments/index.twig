@@ -1,0 +1,35 @@
+{% extends 'dispatch/_layouts/plugin' %}
+
+{% set title = 'Segments'|t('dispatch') %}
+{% set selectedSubnavItem = 'segments' %}
+
+{% block actionButton %}
+    <a href="{{ url('dispatch/segments/new') }}" class="btn submit add icon">{{ 'New Segment'|t('dispatch') }}</a>
+{% endblock %}
+
+{% block pluginContent %}
+    {% if segments|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'Name'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Handle'|t('dispatch') }}</th>
+                    <th scope="col">{{ 'Active subscribers matching now'|t('dispatch') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for segment in segments %}
+                    <tr>
+                        <th scope="row"><a href="{{ url('dispatch/segments/' ~ segment.id) }}">{{ segment.name }}</a></th>
+                        <td><code>{{ segment.handle }}</code></td>
+                        <td>{{ counts[segment.id] is not null ? counts[segment.id]|number : '—' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="zilch">
+            <p>{{ 'No segments yet. A segment is a saved set of rules — list membership, signup date, engagement, custom fields — that a campaign can be sent to. It is evaluated when the campaign sends.'|t('dispatch') }}</p>
+        </div>
+    {% endif %}
+{% endblock %}

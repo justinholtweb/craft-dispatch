@@ -4,11 +4,10 @@ namespace justinholtweb\dispatch\services;
 
 use Craft;
 use craft\base\Component;
-use craft\helpers\Db;
 use justinholtweb\dispatch\elements\MailingList;
 use justinholtweb\dispatch\elements\Subscriber;
 use justinholtweb\dispatch\models\Edition;
-use justinholtweb\dispatch\records\SubscriptionRecord;
+use justinholtweb\dispatch\Plugin;
 
 class Lists extends Component
 {
@@ -56,46 +55,13 @@ class Lists extends Component
 
     public function addSubscriber(int $mailingListId, int $subscriberId): bool
     {
-        $existing = SubscriptionRecord::find()
-            ->where(['subscriberId' => $subscriberId, 'mailingListId' => $mailingListId])
-            ->one();
-
-        if ($existing) {
-            return true;
-        }
-
-        $record = new SubscriptionRecord();
-        $record->subscriberId = $subscriberId;
-        $record->mailingListId = $mailingListId;
-        $record->subscribedAt = Db::prepareDateForDb(new \DateTime());
-
-        $result = $record->save();
-
-        if ($result) {
-            $list = $this->getById($mailingListId);
-            if ($list) {
-                $list->refreshSubscriberCount();
-            }
-        }
-
-        return $result;
+        // One code path for joining a list, so its event (sequences, webhooks) always fires.
+        return Plugin::getInstance()->subscribers->subscribe($subscriberId, $mailingListId);
     }
 
     public function removeSubscriber(int $mailingListId, int $subscriberId): bool
     {
-        $result = SubscriptionRecord::deleteAll([
-            'subscriberId' => $subscriberId,
-            'mailingListId' => $mailingListId,
-        ]);
-
-        if ($result) {
-            $list = $this->getById($mailingListId);
-            if ($list) {
-                $list->refreshSubscriberCount();
-            }
-        }
-
-        return $result > 0;
+        return Plugin::getInstance()->subscribers->removeFromList($subscriberId, $mailingListId);
     }
 
     public function getSubscribers(int $mailingListId): array

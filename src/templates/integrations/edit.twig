@@ -1,0 +1,119 @@
+{% extends 'dispatch/_layouts/plugin' %}
+{% import '_includes/forms' as forms %}
+
+{% set selectedSubnavItem = 'integrations' %}
+{% set fullPageForm = true %}
+{% set crumbs = [{ label: 'Integrations'|t('dispatch'), url: url('dispatch/integrations') }] %}
+
+{% block pluginContent %}
+    {{ actionInput('dispatch/integrations/save') }}
+    {{ redirectInput('dispatch/integrations/{id}') }}
+
+    {% if not isNew %}
+        {{ hiddenInput('endpointId', endpoint.id) }}
+    {% endif %}
+
+    <div id="fields">
+        {{ forms.textField({
+            label: 'Name'|t('dispatch'),
+            id: 'name',
+            name: 'name',
+            value: endpoint.name,
+            errors: endpoint.getErrors('name'),
+            required: true,
+            first: true,
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'URL'|t('dispatch'),
+            instructions: 'Where to POST. Must be a public http(s) address; redirects are not followed. May be an environment variable.'|t('dispatch'),
+            id: 'url',
+            name: 'url',
+            value: endpoint.url,
+            suggestEnvVars: true,
+            errors: endpoint.getErrors('url'),
+            required: true,
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'Signing secret'|t('dispatch'),
+            instructions: 'Each request carries an `X-Dispatch-Signature: t=…,v1=…` header: the hex HMAC-SHA256 of `"<t>.<body>"` with this secret. Verify it on your side. Use an environment variable to keep it out of the database.'|t('dispatch'),
+            id: 'secret',
+            name: 'secret',
+            value: endpoint.secret,
+            suggestEnvVars: true,
+            class: 'code',
+            errors: endpoint.getErrors('secret'),
+            required: true,
+        }) }}
+
+        {{ forms.checkboxGroupField({
+            label: 'Events'|t('dispatch'),
+            id: 'events',
+            name: 'events',
+            options: eventOptions,
+            values: endpoint.events,
+            errors: endpoint.getErrors('events'),
+            required: true,
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Enabled'|t('dispatch'),
+            id: 'enabled',
+            name: 'enabled',
+            on: endpoint.enabled,
+        }) }}
+    </div>
+
+    {% if not isNew %}
+        <hr>
+        <div class="buttons">
+            <button type="button" class="btn formsubmit"
+                data-action="dispatch/integrations/test"
+                data-param="endpointId" data-value="{{ endpoint.id }}">{{ 'Send test'|t('dispatch') }}</button>
+            <button type="button" class="btn formsubmit"
+                data-action="dispatch/integrations/delete"
+                data-param="endpointId" data-value="{{ endpoint.id }}"
+                data-confirm="{{ 'Delete this endpoint and its delivery log?'|t('dispatch') }}">{{ 'Delete'|t('dispatch') }}</button>
+        </div>
+
+        <hr>
+
+        <h2>{{ 'Recent deliveries'|t('dispatch') }}</h2>
+
+        {% if deliveries|length %}
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'Event'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Status'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Attempts'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Response'|t('dispatch') }}</th>
+                        <th scope="col">{{ 'Queued'|t('dispatch') }}</th>
+                        <th scope="col"><span class="visually-hidden">{{ 'Actions'|t('dispatch') }}</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in deliveries %}
+                        <tr>
+                            <td><code>{{ d.event }}</code></td>
+                            <td><span class="status {{ d.status == 'success' ? 'green' : (d.status == 'failed' ? 'red' : 'orange') }}"></span>{{ d.status }}</td>
+                            <td>{{ d.attempts }}</td>
+                            <td>{{ d.responseCode ?? '' }} {{ d.error ? d.error|slice(0, 120) : '' }}</td>
+                            <td>{{ d.dateCreated|datetime('short') }}</td>
+                            <td>
+                                {% if d.status in ['failed', 'delivering'] %}
+                                    <button type="button" class="btn small formsubmit"
+                                        data-action="dispatch/integrations/redeliver"
+                                        data-param="deliveryId" data-value="{{ d.id }}">{{ 'Redeliver'|t('dispatch') }}</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="light">{{ 'Nothing delivered yet.'|t('dispatch') }}</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}

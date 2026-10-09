@@ -52,10 +52,32 @@ class CampaignsController extends Controller
         }
 
         $isNew = !$campaign->id;
+        $plugin = Plugin::getInstance();
+        $isPro = Edition::isPro();
+
+        $segmentOptions = [['label' => Craft::t('dispatch', '— No segment —'), 'value' => '']];
+        if ($isPro) {
+            foreach ($plugin->segments->getAll() as $segment) {
+                $segmentOptions[] = ['label' => $segment->name, 'value' => $segment->id];
+            }
+        }
+
+        // Sequences that send this campaign as a step — Send would mail it to the list as well.
+        $usedInSequences = $isNew ? [] : (new \craft\db\Query())
+            ->select(['q.id', 'q.name'])
+            ->distinct()
+            ->from(['s' => '{{%dispatch_sequencesteps}}'])
+            ->innerJoin(['q' => '{{%dispatch_sequences}}'], '[[q.id]] = [[s.sequenceId]]')
+            ->where(['s.campaignId' => $campaign->id])
+            ->all();
 
         return $this->renderTemplate('dispatch/campaigns/edit', [
             'campaign' => $campaign,
             'isNew' => $isNew,
+            'isPro' => $isPro,
+            'segmentOptions' => $segmentOptions,
+            'abResults' => (!$isNew && $campaign->abStatus) ? $plugin->abTesting->results($campaign) : null,
+            'usedInSequences' => $usedInSequences,
             'listOptions' => $listOptions,
             'title' => $isNew ? Craft::t('dispatch', 'New Campaign') : $campaign->title,
         ]);
@@ -86,6 +108,28 @@ class CampaignsController extends Controller
         $campaign->templatePath = $request->getBodyParam('templatePath');
         $campaign->body = $request->getBodyParam('body');
         $campaign->mailingListId = $request->getBodyParam('mailingListId') ?: null;
+
+        // Pro fields: only read when posted on a Pro site, so a downgraded site keeps them.
+        if (Edition::isPro()) {
+            if (($segmentId = $request->getBodyParam('segmentId')) !== null) {
+                $campaign->segmentId = (int)$segmentId ?: null;
+            }
+
+            // The test settings are fixed once the campaign has started sending.
+            $editable = in_array($campaign->campaignStatus, ['draft', 'scheduled'], true);
+
+            if ($editable && $request->getBodyParam('abEnabled') !== null) {
+                $campaign->abEnabled = (bool)$request->getBodyParam('abEnabled');
+                $rows = $request->getBodyParam('abSubjects');
+                $campaign->setAbSubjects(array_map(
+                    static fn($row) => is_array($row) ? (string)($row['subject'] ?? '') : (string)$row,
+                    is_array($rows) ? array_values($rows) : [],
+                ));
+                $campaign->abTestPercent = (int)$request->getBodyParam('abTestPercent', 20);
+                $campaign->abMetric = (string)$request->getBodyParam('abMetric', 'opens');
+                $campaign->abWaitMinutes = (int)round((float)$request->getBodyParam('abWaitHours', 4) * 60);
+            }
+        }
 
         if (!Craft::$app->getElements()->saveElement($campaign)) {
             Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn\'t save campaign.'));
@@ -202,6 +246,43 @@ class CampaignsController extends Controller
         return $this->renderTemplate('dispatch/settings/transport', [
             'settings' => Plugin::getInstance()->getSettings(),
         ]);
+    }
+
+    /**
+     * The subscriber field layout editor. Admins only, and only where admin changes are allowed:
+     * the layout is project config.
+     */
+    public function actionSettingsSubscriberFields(?\craft\models\FieldLayout $fieldLayout = null): Response
+    {
+        $this->requireAdmin(true);
+
+        return $this->renderTemplate('dispatch/settings/subscriber-fields', [
+            'fieldLayout' => $fieldLayout ?? Craft::$app->getFields()->getLayoutByType(\justinholtweb\dispatch\elements\Subscriber::class),
+        ]);
+    }
+
+    public function actionSaveSubscriberFields(): ?Response
+    {
+        $this->requirePostRequest();
+        $this->requireAdmin(true);
+
+        $layout = Craft::$app->getFields()->assembleLayoutFromPost();
+        $layout->type = \justinholtweb\dispatch\elements\Subscriber::class;
+        $layout->reservedFieldHandles = ['email', 'firstName', 'lastName', 'fullName', 'status', 'userId', 'subscribedAt', 'unsubscribedAt', 'metadata'];
+
+        if (!$layout->validate()) {
+            Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn’t save subscriber fields.'));
+            Craft::$app->getUrlManager()->setRouteParams(['fieldLayout' => $layout]);
+
+            return null;
+        }
+
+        $uid = $layout->uid ?: \craft\helpers\StringHelper::UUID();
+        Craft::$app->getProjectConfig()->set(Plugin::PC_SUBSCRIBER_FIELD_LAYOUT, [$uid => $layout->getConfig()], 'Save the Dispatch subscriber field layout');
+
+        Craft::$app->getSession()->setNotice(Craft::t('dispatch', 'Subscriber fields saved.'));
+
+        return $this->redirectToPostedUrl();
     }
 
     /**

@@ -1,0 +1,23 @@
+{% extends 'dispatch/_layouts/plugin' %}
+{% import '_includes/forms' as forms %}
+
+{% set title = 'Subscriber Fields'|t('dispatch') %}
+{% set selectedSubnavItem = 'settings' %}
+{% set fullPageForm = true %}
+
+{% block sidebar %}
+    {% include 'dispatch/settings/_nav' with { settingsPage: 'subscriber-fields' } %}
+{% endblock %}
+
+{% block pluginContent %}
+    {{ actionInput('dispatch/campaigns/save-subscriber-fields') }}
+    {{ redirectInput('dispatch/settings/subscriber-fields') }}
+
+    <p class="light">
+        {{ 'Custom fields on every subscriber. They show on the subscriber edit page, can be used in campaign Twig as subscriber.yourFieldHandle, and each one becomes a rule in the segment builder (Pro). Saved in project config.'|t('dispatch') }}
+    </p>
+
+    {{ forms.fieldLayoutDesignerField({
+        fieldLayout: fieldLayout,
+    }) }}
+{% endblock %}

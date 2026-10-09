@@ -1,0 +1,135 @@
+{% extends 'dispatch/_layouts/plugin' %}
+{% import '_includes/forms' as forms %}
+
+{% set selectedSubnavItem = 'sequences' %}
+{% set fullPageForm = true %}
+{% set crumbs = [{ label: 'Drip Sequences'|t('dispatch'), url: url('dispatch/sequences') }] %}
+
+{% block pluginContent %}
+    {{ actionInput('dispatch/sequences/save') }}
+    {{ redirectInput('dispatch/sequences') }}
+
+    {% if not isNew %}
+        {{ hiddenInput('sequenceId', sequence.id) }}
+    {% endif %}
+
+    <div id="fields">
+        {{ forms.textField({
+            label: 'Name'|t('dispatch'),
+            id: 'name',
+            name: 'name',
+            value: sequence.name,
+            errors: sequence.getErrors('name'),
+            required: true,
+            first: true,
+        }) }}
+
+        {{ forms.textField({
+            label: 'Handle'|t('dispatch'),
+            id: 'handle',
+            name: 'handle',
+            value: sequence.handle,
+            errors: sequence.getErrors('handle'),
+            class: 'code',
+            required: true,
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Enabled'|t('dispatch'),
+            instructions: 'Turning a sequence off pauses it: nobody new is enrolled and nothing is sent. Turning it back on sends whatever fell due meanwhile.'|t('dispatch'),
+            id: 'enabled',
+            name: 'enabled',
+            on: sequence.enabled,
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'Trigger'|t('dispatch') }}</h2>
+
+        {{ forms.selectField({
+            label: 'Start when a subscriber…'|t('dispatch'),
+            id: 'triggerType',
+            name: 'triggerType',
+            value: sequence.triggerType,
+            options: [
+                { label: 'joins a mailing list'|t('dispatch'), value: 'list' },
+                { label: 'triggers a custom event'|t('dispatch'), value: 'event' },
+            ],
+            toggle: true,
+            targetPrefix: 'trigger-',
+        }) }}
+
+        <div id="trigger-list"{% if sequence.triggerType != 'list' %} class="hidden"{% endif %}>
+            {{ forms.selectField({
+                label: 'Mailing List'|t('dispatch'),
+                instructions: 'Subscribers who join this list are enrolled. Leaving it stops the sequence for them.'|t('dispatch'),
+                id: 'triggerListId',
+                name: 'triggerListId',
+                value: sequence.triggerListId,
+                options: listOptions,
+                errors: sequence.getErrors('triggerListId'),
+            }) }}
+        </div>
+
+        <div id="trigger-event"{% if sequence.triggerType != 'event' %} class="hidden"{% endif %}>
+            {{ forms.textField({
+                label: 'Event key'|t('dispatch'),
+                instructions: 'Fired from code — `Plugin::getInstance()->sequences->fire(\'order.completed\', $email)` — or the REST API’s `event` endpoint.'|t('dispatch'),
+                id: 'triggerEvent',
+                name: 'triggerEvent',
+                value: sequence.triggerEvent,
+                class: 'code',
+                errors: sequence.getErrors('triggerEvent'),
+                tip: triggerEvents|length ? 'Registered events: {events}'|t('dispatch', { events: triggerEvents|keys|join(', ') }) : null,
+            }) }}
+        </div>
+
+        <hr>
+
+        <h2>{{ 'Emails'|t('dispatch') }}</h2>
+
+        {{ forms.editableTableField({
+            label: 'Steps'|t('dispatch'),
+            instructions: 'Each step sends a campaign (its subject and body are the email) a delay after the previous step — the first, a delay after enrolment. Nobody is sent the same campaign twice. Changes apply to subscribers enrolled from now on; removing a step cancels it for everyone.'|t('dispatch'),
+            id: 'steps',
+            name: 'steps',
+            cols: {
+                campaignId: { type: 'select', heading: 'Campaign'|t('dispatch'), options: campaignOptions },
+                delay: { type: 'number', heading: 'Wait'|t('dispatch'), width: 90 },
+                unit: { type: 'select', heading: ''|t('dispatch'), options: [
+                    { label: 'minutes'|t('dispatch'), value: 'minutes' },
+                    { label: 'hours'|t('dispatch'), value: 'hours' },
+                    { label: 'days'|t('dispatch'), value: 'days' },
+                ], width: 110 },
+            },
+            rows: stepRows,
+            defaultValues: { delay: 1, unit: 'days' },
+            allowAdd: true,
+            allowDelete: true,
+            allowReorder: true,
+            addRowLabel: 'Add a step'|t('dispatch'),
+            errors: sequence.getErrors('steps'),
+        }) }}
+
+        {% if stats %}
+            <hr>
+            <h2>{{ 'Progress'|t('dispatch') }}</h2>
+            <p>
+                {{ '{active} in progress, {completed} completed, {stopped} stopped. {sent} emails sent, {pending} scheduled, {failed} failed.'|t('dispatch', {
+                    active: stats.active|number, completed: stats.completed|number, stopped: stats.stopped|number,
+                    sent: stats.sent|number, pending: stats.pending|number, failed: stats.failed|number,
+                }) }}
+            </p>
+        {% endif %}
+    </div>
+
+    {% if not isNew %}
+        <hr>
+        <div class="buttons">
+            <button type="button" class="btn formsubmit"
+                data-action="dispatch/sequences/delete"
+                data-param="sequenceId" data-value="{{ sequence.id }}"
+                data-confirm="{{ 'Delete this sequence? Its scheduled emails are cancelled.'|t('dispatch') }}">{{ 'Delete'|t('dispatch') }}</button>
+        </div>
+    {% endif %}
+{% endblock %}

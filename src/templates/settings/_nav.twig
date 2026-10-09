@@ -1,0 +1,14 @@
+{# Settings pages, as a sidebar. `settingsPage` is the current one. #}
+<nav>
+    <ul>
+        {% for page, label in {
+            general: 'General'|t('dispatch'),
+            transport: 'Delivery & Webhooks'|t('dispatch'),
+            'subscriber-fields': 'Subscriber Fields'|t('dispatch'),
+        } %}
+            {% if page != 'subscriber-fields' or (currentUser.admin and craft.app.config.general.allowAdminChanges) %}
+                <li><a href="{{ cpUrl('dispatch/settings' ~ (page == 'general' ? '' : '/' ~ page)) }}"{% if page == settingsPage %} class="sel"{% endif %}>{{ label }}</a></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>

@@ -45,6 +45,16 @@ class Settings extends Model
     /** ARN of the SNS topic SES publishes bounces and complaints to. Env-able. */
     public string $sesTopicArn = '';
 
+    /**
+     * Let outgoing webhooks (Integrations, Pro) reach private and loopback addresses. Off: an
+     * endpoint URL typed into the CP must resolve to public addresses only. Set it in
+     * `config/dispatch.php` — deliberately not on the settings screen.
+     */
+    public bool $allowPrivateIntegrationHosts = false;
+
+    /** Delivery log entries for outgoing webhooks are kept this many days. */
+    public int $integrationLogDays = 30;
+
     /** Setting names an admin may change from the settings screens. */
     public const EDITABLE = [
         'defaultFromName', 'defaultFromEmail', 'defaultReplyToEmail', 'defaultTemplateLayout',
@@ -60,7 +70,8 @@ class Settings extends Model
             [['defaultFromEmail', 'defaultReplyToEmail'], 'email', 'skipOnEmpty' => true],
             [['sendBatchSize'], 'integer', 'min' => 1, 'max' => 500],
             [['sendRateLimit'], 'integer', 'min' => 0],
-            [['enableTracking', 'trackOpens', 'trackClicks'], 'boolean'],
+            [['enableTracking', 'trackOpens', 'trackClicks', 'allowPrivateIntegrationHosts'], 'boolean'],
+            [['integrationLogDays'], 'integer', 'min' => 1],
             [['apiKey', 'mailgunWebhookSigningKey', 'postmarkWebhookUsername', 'postmarkWebhookPassword', 'sendgridWebhookPublicKey', 'sesTopicArn'], 'string'],
         ];
     }

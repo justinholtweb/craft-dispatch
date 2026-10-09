@@ -12,6 +12,7 @@ use craft\db\ActiveRecord;
  * @property string|null $errorMessage
  * @property string $sentAt
  * @property string|null $messageId
+ * @property int|null $variant
  */
 class SendLogRecord extends ActiveRecord
 {

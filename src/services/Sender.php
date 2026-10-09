@@ -92,12 +92,19 @@ class Sender extends Component
         return Craft::$app->getView()->renderSandboxedString($template, $context);
     }
 
-    public function sendToSubscriber(Campaign $campaign, Subscriber $subscriber): bool
+    /**
+     * Sends a campaign to one subscriber and logs it.
+     *
+     * @param int|null $variant The A/B subject variant to use (0 = the campaign's own subject).
+     * @param bool $isTest Whether this is an A/B test send — only those record their variant, so
+     * the test results aren't diluted by the remainder (which all gets the winner).
+     */
+    public function sendToSubscriber(Campaign $campaign, Subscriber $subscriber, ?int $variant = null, bool $isTest = false): bool
     {
         $settings = Plugin::getInstance()->getSettings();
 
         $html = $this->renderEmail($campaign, $subscriber);
-        $subject = $this->renderEditorTwig((string)$campaign->subject, [
+        $subject = $this->renderEditorTwig($campaign->getSubjectForVariant($variant), [
             'subscriber' => $subscriber,
             'campaign' => $campaign,
         ]);
@@ -126,6 +133,7 @@ class Sender extends Component
         $logRecord->campaignId = $campaign->id;
         $logRecord->subscriberId = $subscriber->id;
         $logRecord->sentAt = Db::prepareDateForDb(new \DateTime());
+        $logRecord->variant = $isTest ? $variant : null;
 
         try {
             $sent = Craft::$app->getMailer()->send($message);
@@ -151,12 +159,22 @@ class Sender extends Component
             Craft::error("Failed to send email to {$subscriber->email}: " . $e->getMessage(), 'dispatch');
         }
 
-        $logRecord->save(false);
+        try {
+            $logRecord->save(false);
+        } catch (\yii\db\IntegrityException) {
+            // Already logged for this campaign and subscriber (the log is unique per pair). The
+            // send paths check before sending; this is the backstop, not the guard.
+            Craft::warning("Dispatch: campaign {$campaign->id} was already logged for subscriber {$subscriber->id}.", 'dispatch');
+        }
 
         return $logRecord->status === 'sent';
     }
 
-    public function sendBatch(Campaign $campaign, array $subscribers): array
+    /**
+     * @param Subscriber[] $subscribers
+     * @return array{sent: int, failed: int}
+     */
+    public function sendBatch(Campaign $campaign, array $subscribers, ?int $variant = null, bool $isTest = false): array
     {
         $results = ['sent' => 0, 'failed' => 0];
         $settings = Plugin::getInstance()->getSettings();
@@ -167,7 +185,16 @@ class Sender extends Component
                 usleep((int)(1_000_000 / $settings->sendRateLimit));
             }
 
-            if ($this->sendToSubscriber($campaign, $subscriber)) {
+            try {
+                $ok = $this->sendToSubscriber($campaign, $subscriber, $variant, $isTest);
+            } catch (\Twig\Sandbox\SecurityError $e) {
+                throw $e;
+            } catch (\Throwable $e) {
+                Craft::error("Dispatch could not send campaign {$campaign->id} to {$subscriber->email}: " . $e->getMessage(), 'dispatch');
+                $ok = false;
+            }
+
+            if ($ok) {
                 $results['sent']++;
             } else {
                 $results['failed']++;

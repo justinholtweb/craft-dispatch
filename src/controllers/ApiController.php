@@ -222,6 +222,32 @@ class ApiController extends Controller
         return $this->asJson(['success' => true]);
     }
 
+    /**
+     * Fires a custom drip-sequence trigger for a subscriber:
+     * `POST /dispatch/api/v1/event` with `email` and `event` (e.g. `order.completed`).
+     * The subscriber must already exist; nobody is created or subscribed here.
+     */
+    public function actionEvent(): Response
+    {
+        $this->requirePostRequest();
+
+        $request = Craft::$app->getRequest();
+        $email = trim((string)$request->getRequiredBodyParam('email'));
+        $event = trim((string)$request->getRequiredBodyParam('event'));
+
+        if (!preg_match('/^[a-zA-Z0-9_.:\-]{1,255}$/', $event)) {
+            return $this->asJson(['error' => 'Invalid event key'])->setStatusCode(400);
+        }
+
+        $subscriber = Plugin::getInstance()->subscribers->getByEmail($email);
+
+        if (!$subscriber) {
+            return $this->asJson(['error' => 'Subscriber not found'])->setStatusCode(404);
+        }
+
+        return $this->asJson(['enrolled' => Plugin::getInstance()->sequences->fire($event, $subscriber)]);
+    }
+
     private function _serializeSubscriber(Subscriber $subscriber): array
     {
         return [
