@@ -1,0 +1,70 @@
+{#
+ # Dispatch's sign-up form, rendered by craft.dispatch.signupForm(). Plugin templates render in
+ # CP template mode, so this one is self-contained and unstyled: every element carries a
+ # `dispatch-signup…` class to style from the site's own CSS.
+ #}
+<form method="post" id="{{ formId }}" class="dispatch-signup{{ class ? ' ' ~ class }}" accept-charset="UTF-8">
+    {{ csrfInput() }}
+    {{ actionInput('dispatch/signup/subscribe') }}
+    {{ hiddenInput('signup', signup) }}
+    {{ hiddenInput('formId', formId) }}
+    {% if redirect %}{{ redirectInput(redirect) }}{% endif %}
+
+    {% if success %}
+        <p class="dispatch-signup-success" role="status">{{ success }}</p>
+    {% else %}
+        {% if errors.form ?? null %}
+            <p class="dispatch-signup-error" role="alert">{{ errors.form ?? null }}</p>
+        {% endif %}
+
+        {% if askName %}
+            <div class="dispatch-signup-field">
+                <label for="{{ formId }}-firstName">{{ 'First name'|t('dispatch') }}</label>
+                <input type="text" id="{{ formId }}-firstName" name="firstName" value="{{ values.firstName ?? '' }}" autocomplete="given-name" maxlength="255">
+            </div>
+            <div class="dispatch-signup-field">
+                <label for="{{ formId }}-lastName">{{ 'Last name'|t('dispatch') }}</label>
+                <input type="text" id="{{ formId }}-lastName" name="lastName" value="{{ values.lastName ?? '' }}" autocomplete="family-name" maxlength="255">
+            </div>
+        {% endif %}
+
+        <div class="dispatch-signup-field">
+            <label for="{{ formId }}-email">{{ emailLabel }}</label>
+            <input type="email" id="{{ formId }}-email" name="email" value="{{ values.email ?? '' }}" autocomplete="email" maxlength="255" required{% if errors.email ?? null %} aria-invalid="true" aria-describedby="{{ formId }}-email-error"{% endif %}>
+            {% if errors.email ?? null %}<p class="dispatch-signup-error" id="{{ formId }}-email-error">{{ errors.email ?? null }}</p>{% endif %}
+        </div>
+
+        {% if config.chooseLists and lists|length %}
+            <fieldset class="dispatch-signup-lists">
+                <legend>{{ 'Lists'|t('dispatch') }}</legend>
+                {# The empty marker tells the server the visitor was asked, even if they tick nothing. #}
+                {{ hiddenInput('lists[]', '') }}
+                {% for list in lists %}
+                    <label class="dispatch-signup-list">
+                        <input type="checkbox" name="lists[]" value="{{ list.handle }}" checked>
+                        {{ list.title ?: list.name }}
+                    </label>
+                {% endfor %}
+                {% if errors.lists ?? null %}<p class="dispatch-signup-error">{{ errors.lists ?? null }}</p>{% endif %}
+            </fieldset>
+        {% endif %}
+
+        {% if consentHtml %}
+            <div class="dispatch-signup-consent">
+                <label>
+                    <input type="checkbox" name="consent" value="1" required>
+                    <span>{{ consentHtml }}</span>
+                </label>
+                {% if errors.consent ?? null %}<p class="dispatch-signup-error">{{ errors.consent ?? null }}</p>{% endif %}
+            </div>
+        {% endif %}
+
+        {# Hidden from people; a bot that fills it in is told it worked and nothing happens. #}
+        <div class="dispatch-signup-hp" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;">
+            <label for="{{ formId }}-{{ honeypot }}">{{ 'Leave this empty'|t('dispatch') }}</label>
+            <input type="text" id="{{ formId }}-{{ honeypot }}" name="{{ honeypot }}" value="" tabindex="-1" autocomplete="off">
+        </div>
+
+        <button type="submit" class="dispatch-signup-submit">{{ buttonLabel }}</button>
+    {% endif %}
+</form>

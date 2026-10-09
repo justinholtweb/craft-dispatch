@@ -4,6 +4,7 @@
         {% for page, label in {
             general: 'General'|t('dispatch'),
             transport: 'Delivery & Webhooks'|t('dispatch'),
+            signups: 'Sign-up Forms'|t('dispatch'),
             'subscriber-fields': 'Subscriber Fields'|t('dispatch'),
         } %}
             {% if page != 'subscriber-fields' or (currentUser.admin and craft.app.config.general.allowAdminChanges) %}

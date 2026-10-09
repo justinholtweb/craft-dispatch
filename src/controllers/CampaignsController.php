@@ -248,6 +248,17 @@ class CampaignsController extends Controller
         ]);
     }
 
+    /** Sign-up form settings: double opt-in, the confirmation email and page, consent. */
+    public function actionSettingsSignups(): Response
+    {
+        $this->requirePermission('dispatch:manageSettings');
+
+        return $this->renderTemplate('dispatch/settings/signups', [
+            'settings' => Plugin::getInstance()->getSettings(),
+            'pendingCount' => Plugin::getInstance()->signups->pendingCount(),
+        ]);
+    }
+
     /**
      * The subscriber field layout editor. Admins only, and only where admin changes are allowed:
      * the layout is project config.
@@ -268,7 +279,7 @@ class CampaignsController extends Controller
 
         $layout = Craft::$app->getFields()->assembleLayoutFromPost();
         $layout->type = \justinholtweb\dispatch\elements\Subscriber::class;
-        $layout->reservedFieldHandles = ['email', 'firstName', 'lastName', 'fullName', 'status', 'userId', 'subscribedAt', 'unsubscribedAt', 'metadata'];
+        $layout->reservedFieldHandles = ['email', 'firstName', 'lastName', 'fullName', 'status', 'userId', 'subscribedAt', 'unsubscribedAt', 'metadata', 'consentedAt', 'consent'];
 
         if (!$layout->validate()) {
             Craft::$app->getSession()->setError(Craft::t('dispatch', 'Couldn’t save subscriber fields.'));

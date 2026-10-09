@@ -146,6 +146,8 @@ class SubscriberQuery extends ElementQuery
             'dispatch_subscribers.subscribedAt',
             'dispatch_subscribers.unsubscribedAt',
             'dispatch_subscribers.metadata',
+            'dispatch_subscribers.consentedAt',
+            'dispatch_subscribers.consent',
         ]);
 
         if ($this->email !== null) {

@@ -56,6 +56,28 @@
             ],
         }) }}
 
+        {% if subscriber.consentedAt %}
+            {% set consent = subscriber.consent ?? {} %}
+            <hr>
+            <h2>{{ 'Consent'|t('dispatch') }}</h2>
+            {# Recorded by a sign-up form; read-only. #}
+            <dl class="dispatch-consent">
+                <dt>{{ 'Agreed'|t('dispatch') }}</dt>
+                <dd>{{ subscriber.getConsentedAtDate()|datetime('short') }} · {{ (consent.method ?? '') == 'double-opt-in' ? 'Confirmed by email (double opt-in)'|t('dispatch') : 'Single opt-in'|t('dispatch') }}</dd>
+                {% if consent.source ?? null %}<dt>{{ 'Form'|t('dispatch') }}</dt><dd>{{ consent.source }}</dd>{% endif %}
+                {% if consent.text ?? null %}<dt>{{ 'Wording'|t('dispatch') }}</dt><dd>{{ consent.text }}</dd>{% endif %}
+                {% if consent.pageUrl ?? null %}<dt>{{ 'Page'|t('dispatch') }}</dt><dd>{{ consent.pageUrl }}</dd>{% endif %}
+                {% if consent.lists ?? null %}<dt>{{ 'Lists'|t('dispatch') }}</dt><dd>{{ consent.lists|join(', ') }}</dd>{% endif %}
+                {% if consent.ipHash ?? null %}<dt>{{ 'IP (keyed hash)'|t('dispatch') }}</dt><dd><code>{{ consent.ipHash|slice(0, 16) }}…</code></dd>{% endif %}
+                {% if consent.toss ?? null %}<dt>{{ 'Cookie consent (Toss)'|t('dispatch') }}</dt><dd>{{ (consent.toss.granted ?? [])|join(', ') ?: '—' }}</dd>{% endif %}
+            </dl>
+            {% css %}
+                .dispatch-consent { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+                .dispatch-consent dt { font-weight: 600; }
+                .dispatch-consent dd { margin: 0; word-break: break-word; }
+            {% endcss %}
+        {% endif %}
+
         {% set fieldLayout = subscriber.getFieldLayout() %}
         {% if fieldLayout and fieldLayout.getCustomFields()|length %}
             <hr>

@@ -26,6 +26,36 @@ class Subscriber extends Element
     public ?string $unsubscribedAt = null;
     public ?array $metadata = null;
 
+    /** When this subscriber last agreed to be mailed through a sign-up form (5.3). */
+    public ?string $consentedAt = null;
+
+    /**
+     * What they agreed to and how: `method` (`double-opt-in` or `single-opt-in`), `source`,
+     * `text` and `textVersion`, `pageUrl`, `ipHash`, `lists`, `signedUpAt`, `confirmedAt` and,
+     * when Toss manages consent, `toss`. See `Signups::confirm()`.
+     *
+     * @var array<string, mixed>|null
+     */
+    public ?array $consent = null;
+
+    /**
+     * MySQL hands a json column back as a string, and the element is built from the query row
+     * as is — so these are decoded here rather than left to fail the array type.
+     */
+    public function __construct($config = [])
+    {
+        foreach (['metadata', 'consent'] as $key) {
+            if (isset($config[$key]) && is_string($config[$key])) {
+                $decoded = json_decode($config[$key], true);
+                // Metadata saved before 5.3 was encoded twice: a JSON string holding the JSON.
+                $decoded = is_string($decoded) ? json_decode($decoded, true) : $decoded;
+                $config[$key] = is_array($decoded) ? $decoded : null;
+            }
+        }
+
+        parent::__construct($config);
+    }
+
     public static function displayName(): string
     {
         return Craft::t('dispatch', 'Subscriber');
@@ -185,6 +215,15 @@ class Subscriber extends Element
         return $this->getFullName() ?: $this->email ?? '';
     }
 
+    /**
+     * {@see $consentedAt} as a date. The column holds UTC, like every date Craft stores; read
+     * as a bare string it would be taken for the site's own time zone.
+     */
+    public function getConsentedAtDate(): ?\DateTime
+    {
+        return $this->consentedAt ? new \DateTime($this->consentedAt, new \DateTimeZone('UTC')) : null;
+    }
+
     public function getFullName(): string
     {
         return trim(($this->firstName ?? '') . ' ' . ($this->lastName ?? ''));
@@ -254,7 +293,12 @@ class Subscriber extends Element
         $record->userId = $this->userId;
         $record->subscribedAt = $this->subscribedAt ?? Db::prepareDateForDb(new \DateTime());
         $record->unsubscribedAt = $this->unsubscribedAt;
-        $record->metadata = $this->metadata ? json_encode($this->metadata) : null;
+        // Assigned as an array, like `consent`: the json column encodes it. Encoding it here too
+        // stored a JSON string inside the JSON, which then never decoded back into an array.
+        $record->metadata = $this->metadata ?: null;
+        $record->consentedAt = $this->consentedAt;
+        // Assigned as an array: the json column encodes it once.
+        $record->consent = $this->consent ?: null;
 
         $record->save(false);
 

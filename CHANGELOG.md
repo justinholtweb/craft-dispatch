@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- **Sign-up forms with double opt-in.** `{{ craft.dispatch.signupForm('newsletter') }}` puts a sign-up form in any template, with options for list choice, name fields, a consent checkbox (enforced on the server), a source label and a redirect. A new address is emailed a confirmation link. Opening it shows a Confirm button, so a mail scanner opening the link confirms nobody, and pressing it makes the person a subscriber. Until then nothing is subscribed, sequenced or sent to a webhook. Links are single-use, stored only as a SHA-256 hash, and expire after 48 hours. Unconfirmed sign-ups are deleted. Hand-built forms post to `dispatch/signup/subscribe` with a signed configuration (`craft.dispatch.signupConfig()`), so a visitor can't add an address to a list the template didn't offer.
+- Sign-ups get the same answer whether the address is new, subscribed, bounced or just signed up, so the form doesn't reveal who is on a list. Each address is rate-limited, with a site-wide ceiling. There's a honeypot. A confirmation goes to one address at most every 5 minutes and 5 times a day. Bounced and complained addresses are never mailed.
+- **Consent on subscribers.** When, how (double or single opt-in), the form, the checkbox wording and its version, the page, the lists and a keyed hash of the IP are kept on the subscriber and shown on their edit page. With Toss managing cookie consent, the visitor's answer is recorded too. With Lock installed, confirmed sign-ups are written to its consent ledger, marked verified, under the new **Lock consent purpose** setting, and a full unsubscribe is written as a withdrawal.
+- **Settings → Sign-up Forms:** double opt-in on or off, the confirmation email's subject and plain-text body, link lifetime, a site template for the confirmation page, sign-ups per minute, the Lock purpose, and a count of sign-ups waiting.
+- `Signups::EVENT_BEFORE_SIGNUP`, which can drop a sign-up, and `Signups::EVENT_AFTER_CONFIRM`. `Plugin::getInstance()->signups->start()` / `confirm()` run the same flow from PHP.
+
+### Fixed
+
+- A full unsubscribe was reported to `EVENT_AFTER_UNSUBSCRIBE` listeners, and to the `subscriber.unsubscribed` webhook, as leaving whichever of the subscriber's lists came last. `mailingList` is now null, as documented.
+- A subscriber's `metadata` was JSON-encoded twice on save and could not be loaded back into the element. It is stored once now, and metadata saved before this fix still loads.
+
 ## 5.2.0 - 2026-10-08
 
 The four Pro features the editions table has listed all along — drip sequences, A/B subject tests, dynamic segments and webhook integrations — were not in the plugin. They are now.

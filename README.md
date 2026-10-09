@@ -7,6 +7,7 @@ Lightweight email marketing and newsletter plugin for Craft CMS 5. Manage subscr
 | Feature | Free | Lite ($49) | Pro ($79) |
 |---|:---:|:---:|:---:|
 | Subscriber management | ✓ | ✓ | ✓ |
+| Sign-up forms with double opt-in | ✓ | ✓ | ✓ |
 | Mailing lists | 1 | Unlimited | Unlimited |
 | CSV import/export | ✓ | ✓ | ✓ |
 | Queue-based sending | 100/mo | Unlimited | Unlimited |
@@ -56,6 +57,11 @@ return [
     // Pro: outgoing webhooks
     'allowPrivateIntegrationHosts' => false,
     'integrationLogDays' => 30,
+    // Sign-up forms
+    'doubleOptIn' => true,
+    'confirmationExpiryHours' => 48,
+    'signupsPerMinute' => 5,
+    'lockPurpose' => 'marketing',
 ];
 ```
 
@@ -113,6 +119,60 @@ Schedule one for later — the scheduler (below) starts it at that time:
 ```php
 Plugin::getInstance()->campaigns->schedule($campaignId, new DateTime('2026-11-01 09:00'));
 ```
+
+### Sign-up forms (double opt-in)
+
+Put a sign-up form in any site template:
+
+```twig
+{{ craft.dispatch.signupForm('newsletter') }}
+```
+
+The person who signs up is emailed a link. Opening it shows a **Confirm** button, and pressing it makes them a subscriber on the list. Nothing is subscribed until then: no subscriber record, no list count, no drip sequence, no webhook. A link works once and expires after 48 hours, and sign-ups nobody confirms are deleted. The link opens a page with a button, not a page that confirms, because mail scanners open every link in an email.
+
+Options:
+
+```twig
+{{ craft.dispatch.signupForm(['news', 'offers'], {
+    chooseLists: true,                 {# a checkbox per list, all ticked #}
+    askName: true,                     {# first and last name fields #}
+    consentText: 'I agree to the [privacy policy](/privacy).',  {# a required checkbox #}
+    source: 'footer',                  {# recorded with the consent #}
+    formId: 'footer-signup',           {# when a page has more than one form #}
+    redirect: 'thanks',                {# where to go after a good sign-up #}
+    buttonLabel: 'Sign me up',
+    emailLabel: 'Your email',
+    class: 'my-form',
+}) }}
+```
+
+The form is plain markup with no styles. Every element has a `dispatch-signup…` class for your own CSS. After a post, the same form shows its errors and the values typed, or the success message. Ajax posts with `Accept: application/json` get `{success, confirm, message}`, or `{errors}` with status 400.
+
+**Your own markup.** Post `email` (plus `firstName`, `lastName`, `consent`, `lists[]` as needed) to the `dispatch/signup/subscribe` action. Include a CSRF input and a signed configuration, which is how the form says which lists it offers:
+
+```twig
+<form method="post">
+    {{ csrfInput() }}
+    {{ actionInput('dispatch/signup/subscribe') }}
+    {{ hiddenInput('signup', craft.dispatch.signupConfig({ lists: 'newsletter', consentText: 'I agree…' })) }}
+    <input type="email" name="email" required>
+    <label><input type="checkbox" name="consent" value="1" required> I agree…</label>
+    <input type="text" name="{{ craft.dispatch.honeypotName() }}" tabindex="-1" autocomplete="off" style="position:absolute;left:-10000px">
+    <button>Subscribe</button>
+</form>
+```
+
+The signature means a visitor can't sign anyone up to a list the template didn't offer, and can't change the consent wording or drop the checkbox. A form that offers a choice (`chooseLists`) must post an empty `lists[]` marker as well, so that ticking nothing is an error and not "all of them".
+
+**Abuse.** Every sign-up gets the same answer, whether the address is new, already subscribed, bounced or was signed up a minute ago, so the form can't be used to find out who is on your list. One address can submit 5 sign-ups a minute (the `signupsPerMinute` setting), and the whole site 20 times that. One address is sent a confirmation at most every 5 minutes and 5 times a day. A filled-in honeypot field is answered as a success and dropped. Addresses that bounced or complained are never mailed. Without double opt-in, an address that unsubscribed is not re-subscribed from a form.
+
+**Consent.** A confirmed subscriber's consent is kept on the subscriber and shown on their edit page: when, how (double or single opt-in), the form's `source`, the checkbox wording and its SHA-256 version, the page, the lists, and a keyed hash of the IP address. The address itself is not stored. When [Toss](https://github.com/justinholtweb/craft-toss) manages cookie consent, the visitor's Toss answer is recorded as well. When [Lock](https://github.com/justinholtweb/craft-lock) is installed, a confirmed sign-up goes into its consent ledger under the **Lock consent purpose** setting (`marketing` by default; blank turns it off), marked verified. A full unsubscribe is recorded there as a withdrawal. Single opt-in sign-ups are never written to Lock, because nobody proved they own the address.
+
+**Settings → Sign-up Forms** (saving needs an admin): double opt-in on or off (off subscribes straight away), the confirmation email's subject and plain-text body (`{link}`, `{siteName}`, `{lists}`, `{hours}`; the body is not Twig), the link's lifetime, a site template for the confirmation page (it gets `state`: `ask`, `confirmed` or `invalid`, plus `code`, `lists` and `siteName`, and posts `code` to `dispatch/signup/confirm`), the rate limit and the Lock purpose.
+
+From PHP: `Plugin::getInstance()->signups->start($email, $listIds, ['firstName' => …, 'source' => …])` runs the same flow, and `->confirm($code)` completes it.
+
+The Pro REST API's `subscribe` endpoint is unchanged. It is a server-to-server call with your API key, and it subscribes at once.
 
 ### Custom subscriber fields
 
@@ -360,6 +420,24 @@ Event::on(Subscribers::class, Subscribers::EVENT_AFTER_UNSUBSCRIBE, function (Su
 // An A/B test's winner was picked (Pro)
 Event::on(AbTesting::class, AbTesting::EVENT_AFTER_PICK_WINNER, function (CampaignEvent $event) {
     // $event->campaign->abWinner
+});
+```
+
+Sign-up forms:
+
+```php
+use justinholtweb\dispatch\events\SignupEvent;
+use justinholtweb\dispatch\services\Signups;
+
+// Before a sign-up is acted on: a spam check, say. A refused sign-up is answered as a success.
+Event::on(Signups::class, Signups::EVENT_BEFORE_SIGNUP, function (SignupEvent $event) {
+    // $event->email, $event->listIds, $event->details
+    $event->isValid = false;
+});
+
+// After a double opt-in sign-up is confirmed
+Event::on(Signups::class, Signups::EVENT_AFTER_CONFIRM, function (SignupEvent $event) {
+    // $event->subscriber
 });
 ```
 

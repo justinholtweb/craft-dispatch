@@ -45,6 +45,7 @@ use yii\base\Event;
  * @property AbTesting $abTesting
  * @property Segments $segments
  * @property Integrations $integrations
+ * @property \justinholtweb\dispatch\services\Signups $signups
  * @property Settings $settings
  * @method Settings getSettings()
  */
@@ -54,7 +55,7 @@ class Plugin extends BasePlugin
     public const EDITION_LITE = 'lite';
     public const EDITION_PRO = 'pro';
 
-    public string $schemaVersion = '1.2.0';
+    public string $schemaVersion = '1.3.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
@@ -74,6 +75,7 @@ class Plugin extends BasePlugin
                 'abTesting' => AbTesting::class,
                 'segments' => Segments::class,
                 'integrations' => Integrations::class,
+                'signups' => \justinholtweb\dispatch\services\Signups::class,
             ],
         ];
     }
@@ -101,6 +103,7 @@ class Plugin extends BasePlugin
             $this->_registerSiteRoutes();
             $this->_registerPermissions();
             $this->_registerAutomation();
+            $this->_registerVariable();
         });
 
         $this->_registerSubscriberFieldLayout();
@@ -184,13 +187,35 @@ class Plugin extends BasePlugin
             ]);
         });
 
+        // A full unsubscribe of someone a sign-up form recorded consent for → a withdrawal in
+        // Lock's ledger, when Lock is installed.
+        Event::on(Subscribers::class, Subscribers::EVENT_AFTER_UNSUBSCRIBE, fn(\justinholtweb\dispatch\events\SubscriberEvent $event) => $this->signups->handleUnsubscribe($event));
+
         Event::on(\craft\services\Gc::class, \craft\services\Gc::EVENT_RUN, [$this, 'collectGarbage']);
     }
 
-    /** Trims the outgoing-webhook delivery log. A named method so tests can call it directly. */
+    /** `craft.dispatch` — the sign-up form helper. */
+    private function _registerVariable(): void
+    {
+        Event::on(
+            \craft\web\twig\variables\CraftVariable::class,
+            \craft\web\twig\variables\CraftVariable::EVENT_INIT,
+            function(\yii\base\Event $event) {
+                /** @var \craft\web\twig\variables\CraftVariable $variable */
+                $variable = $event->sender;
+                $variable->set('dispatch', \justinholtweb\dispatch\variables\DispatchVariable::class);
+            }
+        );
+    }
+
+    /**
+     * Trims the outgoing-webhook delivery log and deletes expired, unconfirmed sign-ups. A named
+     * method so tests can call it directly.
+     */
     public function collectGarbage(): void
     {
         $this->integrations->pruneDeliveries($this->getSettings()->integrationLogDays);
+        $this->signups->purgeExpired();
     }
 
     /**
@@ -389,6 +414,7 @@ class Plugin extends BasePlugin
                 $event->rules['dispatch/settings/subscriber-fields'] = 'dispatch/campaigns/settings-subscriber-fields';
                 $event->rules['dispatch/settings'] = 'dispatch/campaigns/settings';
                 $event->rules['dispatch/settings/transport'] = 'dispatch/campaigns/settings-transport';
+                $event->rules['dispatch/settings/signups'] = 'dispatch/campaigns/settings-signups';
             }
         );
     }
@@ -406,6 +432,9 @@ class Plugin extends BasePlugin
                 // Unsubscribe
                 $event->rules['dispatch/unsubscribe'] = 'dispatch/unsubscribe/index';
                 $event->rules['dispatch/preferences'] = 'dispatch/unsubscribe/preferences';
+
+                // Sign-up forms: the double opt-in confirmation page
+                $event->rules['dispatch/confirm'] = 'dispatch/signup/confirm';
 
                 // Webhooks [Pro]
                 $event->rules['dispatch/webhook/<provider:\w+>'] = 'dispatch/webhook/handle';

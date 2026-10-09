@@ -7,6 +7,7 @@ use craft\db\Migration;
 class Install extends Migration
 {
     use ProSchemaTrait;
+    use SignupSchemaTrait;
 
     public function safeUp(): bool
     {
@@ -14,6 +15,7 @@ class Install extends Migration
         $this->_createIndexes();
         $this->_addForeignKeys();
         $this->createProSchema();
+        $this->createSignupSchema();
 
         return true;
     }
@@ -43,6 +45,7 @@ class Install extends Migration
         \Craft::$app->getFields()->deleteLayoutsByType(\justinholtweb\dispatch\elements\Subscriber::class);
         \Craft::$app->getProjectConfig()->remove(\justinholtweb\dispatch\Plugin::PC_SUBSCRIBER_FIELD_LAYOUT);
 
+        $this->dropSignupSchema();
         $this->dropProSchema();
         $this->dropTableIfExists('{{%dispatch_tracking}}');
         $this->dropTableIfExists('{{%dispatch_sendlog}}');

@@ -25,7 +25,7 @@ src/
 ├── services/                  # Subscribers, Campaigns, Lists, Sender, Tracker, Transports, WebhookVerifier,
 │                              # Scheduler, Sequences, AbTesting, Segments, Integrations (one service per Pro feature)
 ├── templates/                 # Twig templates for CP pages and email layouts
-│   ├── _frontend/             # Public pages: unsubscribe, preferences
+│   ├── _frontend/             # Public pages: unsubscribe, preferences, sign-up form, confirm
 │   ├── _layouts/              # Base CP layout
 │   ├── campaigns/             # Campaign index + editor
 │   ├── subscribers/           # Subscriber index + editor + import
@@ -74,6 +74,13 @@ Scheduled campaigns, A/B winners and drip steps have due times. `Scheduler::arm(
 - **A/B** (`AbTesting`): `testPlan()` is a stable hash shuffle; test sends record `sendlog.variant`; `decideDue()` claims waiting → deciding, picks the winner, queues the `remainder` phase (variant null in the log).
 - **Integrations** (`Integrations`): outgoing webhooks — not the incoming `Webhook*` classes. Delivery log rows + `DeliverWebhookJob` (never throws; retries by re-pushing with backoff). URLs go through `target()` (helpers/Ip, pinned CURLOPT_RESOLVE, no redirects). Signature `t=…,v1=HMAC(t.body)`.
 
+### Sign-up forms (5.3)
+`craft.dispatch.signupForm()` (`variables/DispatchVariable`) → `SignupController::actionSubscribe` (anonymous, CSRF on, `helpers/RateLimit`, honeypot) → `Signups::start()`. The lists a form may sign anyone up to come only from its **signed** `signup` value (`Signups::signConfig()`/`readConfig()`, Craft's `hashData`). Never accept list IDs or handles from a post without intersecting them with the signed set.
+- Double opt-in (default): a row in `dispatch_pendingsignups`, **not** a subscriber, plus a plain-text (not Twig) confirmation email. The token is 32 random bytes and only its SHA-256 is stored (`helpers/Optin`). Lookups check the token's shape, then match the hash exactly. `confirm()` spends the row with one conditional DELETE, then creates or reactivates the subscriber and records consent (`consentedAt`, `consent` JSON). Only after that does it subscribe to the lists, which starts sequences and webhooks. GET `dispatch/confirm` shows a button and changes nothing (mail scanners). The POST confirms.
+- Every well-formed sign-up gets the same response, whatever happened. Keep it that way: no "already subscribed" message.
+- Consent bridge (`helpers/ConsentBridge`, copied from craft-leads): Toss snapshot read in the sign-up request; Lock `consent->record()` on confirm and `withdrawn` on a full unsubscribe, both through the plugin registry after `isPluginEnabled()` — never name their classes.
+- Expired pending rows are purged in `Plugin::collectGarbage()`.
+
 ### Tracking
 - Open tracking: 1×1 transparent GIF served by `TrackingController::actionOpen()`
 - Click tracking: redirect through `TrackingController::actionClick()` with 302
@@ -98,8 +105,9 @@ RFC 8058 compliant: `List-Unsubscribe` + `List-Unsubscribe-Post` headers on ever
 | `dispatch_enrolments` | Pro | Subscriber × sequence, unique |
 | `dispatch_sequencesends` | Pro | Materialised steps with `dueAt` and status |
 | `dispatch_endpoints` / `_deliveries` | Pro | Outgoing webhook endpoints and their delivery log |
+| `dispatch_pendingsignups` | All | Double opt-in sign-ups waiting for confirmation (hashed token, expiry, consent evidence) |
 
-Campaigns also carry `segmentId` and the `ab*` columns; the send log carries `variant`.
+Campaigns also carry `segmentId` and the `ab*` columns; the send log carries `variant`; subscribers carry `consentedAt` and `consent` (5.3).
 
 All tables created in `migrations/Install.php`. Element tables have cascading deletes from `elements.id`.
 
@@ -150,7 +158,10 @@ Integration checks run inside the shared plugin-testing harness:
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/checks.php  # services
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/http.php    # links, webhooks, CP (needs Pro)
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/pro.php     # segments, sequences, A/B, integrations, scheduler
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-dispatch/tests/integration/signup.php  # sign-up forms, double opt-in, Lock/Toss, endpoints
 ```
+
+The Codeception unit suite runs in Dispatch's own DDEV only (`ddev start && ddev exec php vendor/bin/codecept run unit`, then `ddev stop`).
 
 **Never run the Codeception suite (`tests/unit`, `codecept`) in the harness container.** With no `tests/.env` its database setup falls back to the harness DB and drops every table (it wiped the harness on 2026-09-28).
 

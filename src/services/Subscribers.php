@@ -129,11 +129,10 @@ class Subscribers extends Component
 
             SubscriptionRecord::deleteAll(['subscriberId' => $subscriberId]);
 
+            // Not `$list`: that is the event's list, and it must stay null here — a full
+            // unsubscribe used to be reported as leaving whichever list came last.
             foreach ($listIds as $listId) {
-                $list = MailingList::find()->id($listId)->one();
-                if ($list) {
-                    $list->refreshSubscriberCount();
-                }
+                MailingList::find()->id($listId)->one()?->refreshSubscriberCount();
             }
         }
 

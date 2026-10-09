@@ -1,0 +1,101 @@
+{% extends 'dispatch/_layouts/plugin' %}
+{% import '_includes/forms' as forms %}
+
+{% set title = 'Sign-up Forms'|t('dispatch') %}
+{% set selectedSubnavItem = 'settings' %}
+{% set fullPageForm = true %}
+
+{% block sidebar %}
+    {% include 'dispatch/settings/_nav' with { settingsPage: 'signups' } %}
+{% endblock %}
+
+{% block pluginContent %}
+    {{ actionInput('dispatch/campaigns/save-settings') }}
+    {{ redirectInput('dispatch/settings/signups') }}
+
+    <div id="fields">
+        <p class="light">
+            {{ 'Add a sign-up form to any template with {code}. See the README for the options.'|t('dispatch', { code: '<code>{{ craft.dispatch.signupForm(\'yourListHandle\') }}</code>' })|raw }}
+        </p>
+
+        {{ forms.lightswitchField({
+            label: 'Double opt-in'|t('dispatch'),
+            instructions: 'Email new sign-ups a link to confirm their address. They only become subscribers once they use it. Turn this off to subscribe them straight away.'|t('dispatch'),
+            id: 'doubleOptIn',
+            name: 'settings[doubleOptIn]',
+            on: settings.doubleOptIn,
+            errors: settings.getErrors('doubleOptIn'),
+        }) }}
+
+        <p class="light">
+            {{ '{count, plural, =0{No sign-ups are} =1{One sign-up is} other{# sign-ups are}} waiting for their confirmation.'|t('dispatch', { count: pendingCount }) }}
+        </p>
+
+        <hr>
+
+        <h2>{{ 'Confirmation email'|t('dispatch') }}</h2>
+
+        {{ forms.textField({
+            label: 'Subject'|t('dispatch'),
+            instructions: '{siteName} and {lists} are filled in.'|t('dispatch'),
+            id: 'confirmationSubject',
+            name: 'settings[confirmationSubject]',
+            value: settings.confirmationSubject,
+            errors: settings.getErrors('confirmationSubject'),
+        }) }}
+
+        {{ forms.textareaField({
+            label: 'Body'|t('dispatch'),
+            instructions: 'Plain text. {link}, {siteName}, {lists} and {hours} are filled in; {link} has to be there.'|t('dispatch'),
+            id: 'confirmationBody',
+            name: 'settings[confirmationBody]',
+            value: settings.confirmationBody,
+            rows: 8,
+            errors: settings.getErrors('confirmationBody'),
+        }) }}
+
+        {{ forms.textField({
+            label: 'Link expiry (hours)'|t('dispatch'),
+            id: 'confirmationExpiryHours',
+            name: 'settings[confirmationExpiryHours]',
+            value: settings.confirmationExpiryHours,
+            type: 'number',
+            min: 1,
+            max: 720,
+            errors: settings.getErrors('confirmationExpiryHours'),
+        }) }}
+
+        {{ forms.textField({
+            label: 'Confirmation page template'|t('dispatch'),
+            instructions: 'A site template to show the confirmation page with. It gets `state` (ask, confirmed or invalid), `code`, `lists` and `siteName`, and must post `code` to the `dispatch/signup/confirm` action. Leave blank for Dispatch’s own page.'|t('dispatch'),
+            id: 'confirmationTemplate',
+            name: 'settings[confirmationTemplate]',
+            value: settings.confirmationTemplate,
+            errors: settings.getErrors('confirmationTemplate'),
+        }) }}
+
+        <hr>
+
+        <h2>{{ 'Protection and consent'|t('dispatch') }}</h2>
+
+        {{ forms.textField({
+            label: 'Sign-ups per minute'|t('dispatch'),
+            instructions: 'How many sign-ups one address may submit in a minute. The whole site gets 20 times this.'|t('dispatch'),
+            id: 'signupsPerMinute',
+            name: 'settings[signupsPerMinute]',
+            value: settings.signupsPerMinute,
+            type: 'number',
+            min: 1,
+            errors: settings.getErrors('signupsPerMinute'),
+        }) }}
+
+        {{ forms.textField({
+            label: 'Lock consent purpose'|t('dispatch'),
+            instructions: 'When the Lock plugin is installed, confirmed sign-ups are recorded in its consent ledger under this purpose, and a full unsubscribe as a withdrawal. Leave blank to not record them.'|t('dispatch'),
+            id: 'lockPurpose',
+            name: 'settings[lockPurpose]',
+            value: settings.lockPurpose,
+            errors: settings.getErrors('lockPurpose'),
+        }) }}
+    </div>
+{% endblock %}

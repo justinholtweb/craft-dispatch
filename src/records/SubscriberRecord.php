@@ -13,7 +13,9 @@ use craft\db\ActiveRecord;
  * @property int|null $userId
  * @property string $subscribedAt
  * @property string|null $unsubscribedAt
- * @property string|null $metadata
+ * @property array|string|null $metadata
+ * @property string|null $consentedAt
+ * @property array|string|null $consent
  */
 class SubscriberRecord extends ActiveRecord
 {
