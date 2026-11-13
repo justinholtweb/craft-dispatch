@@ -4,6 +4,9 @@
 {% set title = 'Import Subscribers'|t('dispatch') %}
 {% set selectedSubnavItem = 'subscribers' %}
 {% set fullPageForm = true %}
+{% set mainFormAttributes = {
+    enctype: 'multipart/form-data',
+} %}
 
 {% block pluginContent %}
     <input type="hidden" name="action" value="dispatch/subscribers/upload-import">

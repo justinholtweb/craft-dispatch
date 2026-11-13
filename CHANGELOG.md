@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 5.3.1 - 2026-11-13
+### Fixed
+
+- The new mailing list page failed with a Twig syntax error. ([#1](https://github.com/justinholtweb/craft-dispatch/issues/1))
+- CSV import refused every file with "Please upload a CSV file", because the import form didn't post as multipart and the file never reached the server. ([#2](https://github.com/justinholtweb/craft-dispatch/issues/2))
+
 ## 5.3.0 - 2026-10-09
 ### Added
 
